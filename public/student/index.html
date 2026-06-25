@@ -90,44 +90,6 @@
     <!-- Messages -->
     <div class="chat-messages" id="chat-messages"></div>
 
-    <!-- Booking form (hidden until triggered) -->
-    <div class="booking-panel" id="booking-panel">
-      <h3>📝 Book Your Seat — <span id="bp-program">Program</span></h3>
-      <form onsubmit="submitBooking(event)">
-        <div class="booking-grid">
-          <div class="form-group">
-            <label>Full Name *</label>
-            <input type="text" id="bp-name" class="form-control" required />
-          </div>
-          <div class="form-group">
-            <label>Email *</label>
-            <input type="email" id="bp-email" class="form-control" required />
-          </div>
-          <div class="form-group">
-            <label>Phone *</label>
-            <input type="tel" id="bp-phone" class="form-control" required />
-          </div>
-          <div class="form-group">
-            <label>Roll Number</label>
-            <input type="text" id="bp-roll" class="form-control" />
-          </div>
-          <div class="form-group">
-            <label>12th Marks * (% or 440/500)</label>
-            <input type="text" id="bp-marks" class="form-control" placeholder="e.g. 88 or 440/500" required />
-          </div>
-          <div class="form-group">
-            <label>Counseling Slot *</label>
-            <select id="bp-slot" class="form-control" required></select>
-          </div>
-        </div>
-        <div class="alert" id="bp-alert"></div>
-        <div style="display:flex;gap:.7rem;margin-top:.5rem;">
-          <button type="submit" class="btn btn-primary" id="bp-submit-btn">Confirm Booking</button>
-          <button type="button" class="btn btn-outline" onclick="closeBookingPanel()">Cancel</button>
-        </div>
-      </form>
-    </div>
-
     <!-- Input -->
     <div class="chat-input-area">
       <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
@@ -139,7 +101,8 @@
 
 <script>
   // ── State ──────────────────────────────────────────────────────────────────
-  let chatState = 'idle'; // idle | collecting_name | collecting_roll | collecting_marks | collecting_slot | confirm
+  // States: idle | collecting_name | collecting_phone | collecting_email | collecting_roll | collecting_marks | collecting_slot | confirm
+  let chatState = 'idle';
   let pendingProgram = null;
   let collectedData  = {};
 
@@ -156,7 +119,7 @@
     loadPrograms();
     loadProfile();
     loadSlots();
-    appendBotMsg(`👋 Hello! I'm your Admission Assistant.\n\nI can help you:\n• Book a seat in a program\n• Show available courses & cutoffs\n• Give program recommendations based on your marks\n\nClick any program above or type **I want CSE** to get started!`);
+    appendBotMsg(`👋 Hello! I'm your **Admission Assistant**.\n\nHere's what I can do:\n• 🎓 Book a seat → click a program button or type **I want CSE**\n• 📋 See all courses → type **show programs**\n• 📅 Check slots → type **show slots**\n• ❌ Cancel anytime → type **cancel**\n\nWhat would you like to do today?`);
   })();
 
   // ── Load data ──────────────────────────────────────────────────────────────
@@ -185,10 +148,6 @@
     const r = await fetch('/api/slots');
     const { slots } = await r.json();
     slotOptions = slots.filter(s => s.available > 0);
-    const sel = document.getElementById('bp-slot');
-    sel.innerHTML = slotOptions.map(s =>
-      `<option value="${s.id}">${s.slot_date} at ${s.slot_time} (${s.available} left)</option>`
-    ).join('');
   }
 
   // ── Chat messaging ─────────────────────────────────────────────────────────
@@ -248,62 +207,135 @@
     autoResize(input);
     appendUserMsg(text);
 
-    // Handle guided booking flow
+    // ── GUIDED BOOKING FLOW — all handled 100% on frontend, never hits /api/chat ──
+
     if (chatState === 'collecting_name') {
       collectedData.fullName = text;
-      chatState = 'collecting_roll';
-      appendBotMsg(`Thanks, **${text}**! Now, what is your Roll Number (or type "skip")?`);
+      chatState = 'collecting_phone';
+      appendBotMsg(`Nice to meet you, **${text}**! 😊\n\nWhat is your **phone number**?`);
       return;
     }
+
+    if (chatState === 'collecting_phone') {
+      // basic phone check
+      const cleaned = text.replace(/\s+/g, '');
+      if (cleaned.length < 7) {
+        appendBotMsg(`Please enter a valid phone number (e.g. 9876543210).`);
+        return;
+      }
+      collectedData.phone = text;
+      chatState = 'collecting_email';
+      appendBotMsg(`Got it! What is your **email address**?`);
+      return;
+    }
+
+    if (chatState === 'collecting_email') {
+      if (!text.includes('@') || !text.includes('.')) {
+        appendBotMsg(`That doesn't look like a valid email. Please enter a valid email address.`);
+        return;
+      }
+      collectedData.email = text;
+      chatState = 'collecting_roll';
+      appendBotMsg(`What is your **Roll Number**?\n(Type **skip** if you don't have one yet)`);
+      return;
+    }
+
     if (chatState === 'collecting_roll') {
       collectedData.rollNo = text.toLowerCase() === 'skip' ? '' : text;
       chatState = 'collecting_marks';
-      appendBotMsg(`Got it! What are your **12th board marks**?\nYou can enter percentage (e.g., **88**) or fraction (e.g., **440/500**).`);
+      appendBotMsg(`What are your **12th board marks**?\n\nYou can enter:\n• Percentage: **88** or **88%**\n• Fraction: **440/500**`);
       return;
     }
+
     if (chatState === 'collecting_marks') {
-      collectedData.marks = text;
+      // validate marks format before accepting
+      const parsed = parseMarks(text);
+      if (parsed === null) {
+        appendBotMsg(`I couldn't read that. Please enter your marks as a percentage (e.g. **88**) or fraction (e.g. **440/500**).`);
+        return;
+      }
+      collectedData.marks     = text;
+      collectedData.marksPct  = parsed;
       chatState = 'collecting_slot';
-      const slotList = slotOptions.map((s,i) => `  ${i+1}. ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`).join('\n');
-      appendBotMsg(`Perfect! Choose a counseling slot:\n${slotList || 'No slots available.'}\n\nReply with the slot number (e.g., **1**) or type the date.`);
+      const slotList = slotOptions.length
+        ? slotOptions.map((s, i) => `  **${i+1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`).join('\n')
+        : '  _(No slots available right now)_';
+      appendBotMsg(`Great! Your marks: **${parsed}%**\n\nNow choose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
       return;
     }
+
     if (chatState === 'collecting_slot') {
-      const idx = parseInt(text) - 1;
-      if (!isNaN(idx) && slotOptions[idx]) {
-        collectedData.slotId = slotOptions[idx].id;
-        collectedData.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
-      } else {
-        const found = slotOptions.find(s => text.includes(s.slot_date));
-        if (found) { collectedData.slotId = found.id; collectedData.slotLabel = `${found.slot_date} at ${found.slot_time}`; }
-        else { appendBotMsg(`Please enter a valid slot number (1–${slotOptions.length}).`); return; }
+      const idx = parseInt(text, 10) - 1;
+      if (isNaN(idx) || idx < 0 || !slotOptions[idx]) {
+        appendBotMsg(`Please enter a valid slot number between **1** and **${slotOptions.length}**.`);
+        return;
       }
+      collectedData.slotId    = slotOptions[idx].id;
+      collectedData.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
       chatState = 'confirm';
       appendBotMsg(
-        `Almost done! Here's a summary:\n\n` +
-        `• **Program:** ${pendingProgram}\n` +
-        `• **Name:** ${collectedData.fullName}\n` +
-        `• **Roll No:** ${collectedData.rollNo || '—'}\n` +
-        `• **12th Marks:** ${collectedData.marks}\n` +
-        `• **Slot:** ${collectedData.slotLabel}\n\n` +
-        `Type **confirm** to book, or **cancel** to start over.`
+        `Almost done! Please review your details:\n\n` +
+        `🎓 **Program:** ${pendingProgram}\n` +
+        `👤 **Name:** ${collectedData.fullName}\n` +
+        `📧 **Email:** ${collectedData.email}\n` +
+        `📱 **Phone:** ${collectedData.phone}\n` +
+        `🔢 **Roll No:** ${collectedData.rollNo || '—'}\n` +
+        `📊 **12th Marks:** ${collectedData.marksPct}%\n` +
+        `📅 **Slot:** ${collectedData.slotLabel}\n\n` +
+        `Type **confirm** to book your seat, or **cancel** to start over.`
       );
       return;
     }
+
     if (chatState === 'confirm') {
-      if (text.toLowerCase() === 'confirm') {
-        openBookingPanel(pendingProgram, collectedData);
+      const t = text.toLowerCase().trim();
+      if (t === 'confirm' || t === 'yes') {
         chatState = 'idle';
-      } else if (text.toLowerCase() === 'cancel') {
+        await doBooking();
+      } else if (t === 'cancel' || t === 'no') {
         chatState = 'idle'; pendingProgram = null; collectedData = {};
-        appendBotMsg('Booking cancelled. How else can I help you?');
+        appendBotMsg(`Booking cancelled. No worries! Type **I want CSE** (or any program) to start again.`);
       } else {
-        appendBotMsg('Please type **confirm** to proceed or **cancel** to start over.');
+        appendBotMsg(`Please type **confirm** to complete the booking or **cancel** to start over.`);
       }
       return;
     }
 
-    // Normal chat
+    // ── NORMAL CHAT — only reaches here when state is 'idle' ─────────────────
+    // Check for program keywords first (handled locally, no server needed)
+    const detected = detectProgramLocally(text);
+    if (detected) {
+      pendingProgram = detected;
+      chatState = 'collecting_name';
+      appendBotMsg(`Great choice — **${detected}**! 🎉\n\nLet me collect a few details to book your seat.\n\nFirst, what is your **full name**?`);
+      return;
+    }
+
+    // keywords handled locally
+    const lower = text.toLowerCase();
+    if (lower.includes('program') || lower.includes('course') || lower.includes('branch') || lower.includes('show')) {
+      const r = await fetch('/api/programs');
+      const { programs } = await r.json();
+      const list = programs.map(p => `• **${p.name}** — Min: ${p.min_score}% | Seats left: ${p.available_seats}`).join('\n');
+      appendBotMsg(`Here are all available programs:\n\n${list}\n\nClick a program button above or type **I want CSE** to start booking!`);
+      return;
+    }
+    if (lower.includes('slot') || lower.includes('schedule') || lower.includes('date')) {
+      if (!slotOptions.length) { appendBotMsg('No counseling slots are available right now. Please check back later.'); return; }
+      const list = slotOptions.map(s => `• ${s.slot_date} at ${s.slot_time} — ${s.available} seats left`).join('\n');
+      appendBotMsg(`Available counseling slots:\n\n${list}`);
+      return;
+    }
+    if (lower.includes('book') || lower.includes('apply') || lower.includes('seat') || lower.includes('admission')) {
+      appendBotMsg(`To book a seat, just tell me which program you want!\n\nFor example: **I want CSE** or click a program button above.`);
+      return;
+    }
+    if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
+      appendBotMsg(`Hello! 👋 I'm your Admission Assistant.\n\nI can help you:\n• Book a seat → say **I want CSE**\n• See all courses → say **show programs**\n• Check slots → say **show slots**`);
+      return;
+    }
+
+    // fall back to server only for truly unknown messages
     showTyping();
     try {
       const r    = await fetch('/api/chat', {
@@ -313,19 +345,88 @@
       });
       const data = await r.json();
       removeTyping();
-
-      if (data.action === 'start_conversation' && data.suggestedProgram) {
-        pendingProgram = data.suggestedProgram;
-        chatState = 'collecting_name';
-      }
-      appendBotMsg(data.reply || 'Sorry, I didn\'t understand that.');
+      appendBotMsg(data.reply || `I'm not sure about that. Type **show programs** to see available courses or **I want CSE** to start booking!`);
     } catch {
       removeTyping();
-      appendBotMsg('Connection error. Please try again.');
+      appendBotMsg('Connection error. Please check your internet and try again.');
     }
   }
 
+  // ── Direct booking (no booking panel popup — fully in chat) ──────────────
+  async function doBooking() {
+    appendBotMsg(`⏳ Booking your seat, please wait…`);
+    try {
+      const r = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName:    collectedData.fullName,
+          email:       collectedData.email,
+          phone:       collectedData.phone,
+          rollNo:      collectedData.rollNo || '',
+          marks12:     collectedData.marksPct,
+          programName: pendingProgram,
+          slotId:      collectedData.slotId,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        appendBotMsg(`❌ **Booking failed:** ${data.error}\n\nType **I want ${pendingProgram}** to try again.`);
+        pendingProgram = null; collectedData = {};
+        return;
+      }
+      const b = data.booking;
+      appendBotMsg(
+        `🎉 **Seat Booked Successfully!**\n\n` +
+        `• **Booking ID:** ${b.bookingId}\n` +
+        `• **Program:** ${b.program}\n` +
+        `• **Your Marks:** ${b.marks}%\n` +
+        `• **Counseling Date:** ${b.slotDate} at ${b.slotTime}\n\n` +
+        `Please carry your **original marksheet** and **ID proof** on counseling day. Best of luck! 🍀`
+      );
+      renderBookingStatus(b);
+      pendingProgram = null; collectedData = {};
+      loadPrograms(); // refresh seat counts
+    } catch {
+      appendBotMsg(`❌ Network error while booking. Please try again.`);
+      pendingProgram = null; collectedData = {};
+    }
+  }
+
+  // ── Local program detection (no server call) ──────────────────────────────
+  function detectProgramLocally(message) {
+    const t = message.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!t) return null;
+    if (/\b(ai\s*&?\s*data|data\s*science|aids)\b/.test(t)) return 'AI & Data Science';
+    if (/\bcse\b/.test(t) || t.includes('computer science')) return 'CSE';
+    if (/\bece\b/.test(t) || t.includes('electronics')) return 'ECE';
+    if (t.includes('mechanical') || /\bmech\b/.test(t)) return 'Mechanical';
+    if (/\bcivil\b/.test(t)) return 'Civil';
+    if (t.includes('biotechnology') || /\bbiotech\b/.test(t)) return 'Biotechnology';
+    return null;
+  }
+
+  // ── Parse marks on frontend (mirrors server logic) ────────────────────────
+  function parseMarks(input) {
+    const s = String(input || '').trim();
+    const slash = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+    if (slash) {
+      const num = Number(slash[1]), den = Number(slash[2]);
+      if (den > 0) return Math.round((num / den) * 1000) / 10;
+    }
+    const n = parseFloat(s.replace(/%/g, ''));
+    if (isNaN(n)) return null;
+    if (n <= 100) return Math.round(n * 10) / 10;
+    if (n <= 600) return Math.round((n / 500) * 1000) / 10;
+    return null;
+  }
+
   function sendQuick(text) {
+    // if currently mid-flow, don't hijack with a quick button
+    if (chatState !== 'idle') {
+      appendBotMsg(`⚠️ You're in the middle of a booking. Type **cancel** to start over, or finish the current flow.`);
+      return;
+    }
     document.getElementById('chat-input').value = text;
     sendMessage();
   }
@@ -337,70 +438,6 @@
   function autoResize(el) {
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-  }
-
-  // ── Booking Panel ──────────────────────────────────────────────────────────
-  function openBookingPanel(program, prefill = {}) {
-    document.getElementById('bp-program').textContent = program;
-    if (prefill.fullName) document.getElementById('bp-name').value  = prefill.fullName;
-    if (prefill.rollNo)   document.getElementById('bp-roll').value  = prefill.rollNo;
-    if (prefill.marks)    document.getElementById('bp-marks').value = prefill.marks;
-    if (prefill.slotId)   document.getElementById('bp-slot').value  = prefill.slotId;
-    document.getElementById('booking-panel').classList.add('open');
-    document.getElementById('bp-name').scrollIntoView({ behavior: 'smooth' });
-  }
-
-  function closeBookingPanel() {
-    document.getElementById('booking-panel').classList.remove('open');
-    document.getElementById('bp-alert').className = 'alert';
-    chatState = 'idle'; pendingProgram = null; collectedData = {};
-  }
-
-  async function submitBooking(e) {
-    e.preventDefault();
-    const alertEl = document.getElementById('bp-alert');
-    alertEl.className = 'alert';
-
-    const fullName    = document.getElementById('bp-name').value.trim();
-    const email       = document.getElementById('bp-email').value.trim();
-    const phone       = document.getElementById('bp-phone').value.trim();
-    const rollNo      = document.getElementById('bp-roll').value.trim();
-    const marks12     = document.getElementById('bp-marks').value.trim();
-    const slotId      = document.getElementById('bp-slot').value;
-    const programName = document.getElementById('bp-program').textContent;
-    const btn         = document.getElementById('bp-submit-btn');
-
-    btn.disabled = true; btn.textContent = 'Booking…';
-
-    try {
-      const r    = await fetch('/api/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, email, phone, rollNo, marks12, programName, slotId }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        alertEl.textContent = data.error;
-        alertEl.className   = 'alert alert-error show';
-        return;
-      }
-      closeBookingPanel();
-      const b = data.booking;
-      appendBotMsg(
-        `🎉 **Booking Confirmed!**\n\n` +
-        `• **Booking ID:** ${b.bookingId}\n` +
-        `• **Program:** ${b.program}\n` +
-        `• **Your Marks:** ${b.marks}%\n` +
-        `• **Slot:** ${b.slotDate} at ${b.slotTime}\n\n` +
-        `Please carry your original marksheet and ID proof on the counseling day. Best of luck! 🍀`
-      );
-      renderBookingStatus(b);
-    } catch {
-      alertEl.textContent = 'Network error. Please try again.';
-      alertEl.className   = 'alert alert-error show';
-    } finally {
-      btn.disabled = false; btn.textContent = 'Confirm Booking';
-    }
   }
 
   function renderBookingStatus(b) {
