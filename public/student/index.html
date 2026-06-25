@@ -3,31 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Student Portal — Admission Chatbot</title>
+  <title>Student Portal — Sastra Deemed University</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     body { overflow: hidden; }
     strong { font-weight: 700; }
     .msg-bubble strong { font-weight: 700; }
+    .chat-input-area textarea:disabled { opacity: .6; cursor: not-allowed; }
   </style>
 </head>
 <body>
 
 <!-- NAVBAR -->
 <nav class="navbar">
-  <div class="navbar-brand"><span class="icon">🎓</span> Admission Portal</div>
+  <div class="navbar-brand"><span class="icon">🎓</span> Sastra Deemed University</div>
   <div class="navbar-right">
     <div class="navbar-user">Welcome, <span id="nav-name">Student</span></div>
     <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
   </div>
 </nav>
 
-<!-- LAYOUT -->
 <div class="student-layout">
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <!-- Profile -->
     <div>
       <h3>My Profile</h3>
       <div class="profile-card">
@@ -36,7 +35,6 @@
       </div>
     </div>
 
-    <!-- Booking Status -->
     <div>
       <h3>Booking Status</h3>
       <div class="booking-status none" id="booking-status-card">
@@ -45,7 +43,6 @@
       </div>
     </div>
 
-    <!-- Programs -->
     <div>
       <h3>Available Programs</h3>
       <div class="programs-list" id="programs-list">
@@ -53,407 +50,491 @@
       </div>
     </div>
 
-    <!-- Quick links -->
     <div style="margin-top:auto;">
       <h3>Quick Actions</h3>
       <div style="display:flex;flex-direction:column;gap:.4rem;">
-        <button class="program-chip" onclick="sendQuick('Show all programs and cutoffs')">📋 View All Courses</button>
-        <button class="program-chip" onclick="sendQuick('Show available counseling slots')">📅 View Slots</button>
-        <button class="program-chip" onclick="sendQuick('Suggest based on my interests')">💡 Get Recommendation</button>
+        <button class="program-chip" onclick="quickAction('show programs')">📋 View All Courses</button>
+        <button class="program-chip" onclick="quickAction('show slots')">📅 View Slots</button>
       </div>
     </div>
   </aside>
 
-  <!-- CHAT + BOOKING -->
+  <!-- CHAT AREA -->
   <div class="chat-area">
-
-    <!-- Chat header -->
     <div class="chat-header">
       <div class="bot-avatar">🤖</div>
       <div>
         <h2>Admission Assistant</h2>
-        <p>Ask me anything about courses, seats, and bookings</p>
+        <p id="chat-status-text">Online — ask me anything</p>
       </div>
-      <div class="chat-online"></div>
+      <div class="chat-online" id="chat-online-dot"></div>
     </div>
 
-    <!-- Quick action pills -->
-    <div class="quick-actions">
-      <button class="quick-btn" onclick="sendQuick('I want CSE')">💻 CSE</button>
-      <button class="quick-btn" onclick="sendQuick('I want AI & Data Science')">🤖 AI & DS</button>
-      <button class="quick-btn" onclick="sendQuick('I want Mechanical')">⚙️ Mechanical</button>
-      <button class="quick-btn" onclick="sendQuick('I want ECE')">📡 ECE</button>
-      <button class="quick-btn" onclick="sendQuick('I want Civil')">🏗️ Civil</button>
-      <button class="quick-btn" onclick="sendQuick('I want Biotechnology')">🧬 Biotech</button>
+    <!-- Quick program pills -->
+    <div class="quick-actions" id="quick-pills">
+      <button class="quick-btn" onclick="quickAction('I want CSE')">💻 CSE</button>
+      <button class="quick-btn" onclick="quickAction('I want AI & Data Science')">🤖 AI & DS</button>
+      <button class="quick-btn" onclick="quickAction('I want Mechanical')">⚙️ Mech</button>
+      <button class="quick-btn" onclick="quickAction('I want ECE')">📡 ECE</button>
+      <button class="quick-btn" onclick="quickAction('I want Civil')">🏗️ Civil</button>
+      <button class="quick-btn" onclick="quickAction('I want Biotechnology')">🧬 Biotech</button>
     </div>
 
-    <!-- Messages -->
     <div class="chat-messages" id="chat-messages"></div>
 
-    <!-- Input -->
     <div class="chat-input-area">
-      <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
-        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-      <button class="btn btn-primary" onclick="sendMessage()">Send ➤</button>
+      <textarea id="chat-input" rows="1"
+        placeholder="Type here and press Enter…"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"></textarea>
+      <button class="btn btn-primary" id="send-btn" onclick="handleSend()">Send ➤</button>
     </div>
   </div>
 </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  // States: idle | collecting_name | collecting_phone | collecting_email | collecting_roll | collecting_marks | collecting_slot | confirm
-  let chatState = 'idle';
-  let pendingProgram = null;
-  let collectedData  = {};
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE  — single source of truth, never modified from two places at once
+// ─────────────────────────────────────────────────────────────────────────────
+const STATE = {
+  step: 'idle',   // idle | name | phone | email | roll | marks | slot | confirm
+  program: null,
+  data: {},
+};
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  (async () => {
-    try {
-      const r = await fetch('/api/auth/me');
-      if (!r.ok) { window.location.href = '/login.html'; return; }
-      const { user } = await r.json();
-      document.getElementById('nav-name').textContent = user.full_name;
-      document.getElementById('profile-name').textContent = user.full_name;
-    } catch { window.location.href = '/login.html'; }
+let processing = false;   // LOCK — prevents re-entrant calls
+let slotOptions = [];
 
-    loadPrograms();
-    loadProfile();
-    loadSlots();
-    appendBotMsg(`👋 Hello! I'm your **Admission Assistant**.\n\nHere's what I can do:\n• 🎓 Book a seat → click a program button or type **I want CSE**\n• 📋 See all courses → type **show programs**\n• 📅 Check slots → type **show slots**\n• ❌ Cancel anytime → type **cancel**\n\nWhat would you like to do today?`);
-  })();
+// ─────────────────────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch('/api/auth/me');
+    if (!r.ok) { location.href = '/login.html'; return; }
+    const { user } = await r.json();
+    document.getElementById('nav-name').textContent    = user.full_name;
+    document.getElementById('profile-name').textContent = user.full_name;
+  } catch { location.href = '/login.html'; return; }
 
-  // ── Load data ──────────────────────────────────────────────────────────────
-  async function loadPrograms() {
+  await Promise.all([loadPrograms(), loadSlots(), loadProfile()]);
+
+  botSay(
+    '👋 Welcome to **Sastra Deemed University** Admission Portal!\n\n' +
+    'I can help you book a seat. Just click a program button above or type:\n' +
+    '• **I want CSE** — to start booking\n' +
+    '• **show programs** — see all courses & cutoffs\n' +
+    '• **show slots** — see counseling dates\n' +
+    '• **cancel** — restart anytime'
+  );
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  DATA LOADERS
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadPrograms() {
+  try {
     const r = await fetch('/api/programs');
     const { programs } = await r.json();
-    const list = document.getElementById('programs-list');
-    list.innerHTML = programs.map(p => `
-      <div class="program-chip" onclick="sendQuick('I want ${p.name}')">
-        <span>${p.name}</span>
-      </div>`).join('');
-  }
+    document.getElementById('programs-list').innerHTML =
+      programs.map(p =>
+        `<div class="program-chip" onclick="quickAction('I want ${p.name}')"><span>${p.name}</span></div>`
+      ).join('');
+  } catch {}
+}
 
-  async function loadProfile() {
-    try {
-      const r = await fetch('/api/student/profile');
-      if (!r.ok) return;
-      const { booking } = await r.json();
-      if (booking) renderBookingStatus(booking);
-    } catch {}
-  }
-
-  let slotOptions = [];
-  async function loadSlots() {
+async function loadSlots() {
+  try {
     const r = await fetch('/api/slots');
     const { slots } = await r.json();
     slotOptions = slots.filter(s => s.available > 0);
+  } catch { slotOptions = []; }
+}
+
+async function loadProfile() {
+  try {
+    const r = await fetch('/api/student/profile');
+    if (!r.ok) return;
+    const { booking } = await r.json();
+    if (booking) showBookingStatus(booking);
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ENTRY POINTS — all user input goes through ONE gate
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Called by button clicks — sets the input value then triggers handleSend
+function quickAction(text) {
+  if (STATE.step !== 'idle') {
+    botSay('⚠️ You\'re in the middle of a booking. Type **cancel** to start over.');
+    return;
+  }
+  const inp = document.getElementById('chat-input');
+  inp.value = text;
+  handleSend();
+}
+
+// Called by Send button and Enter key
+function handleSend() {
+  const inp  = document.getElementById('chat-input');
+  const text = inp.value.trim();
+  if (!text || processing) return;    // ← LOCK check
+  inp.value = '';
+  autoResize(inp);
+  processMessage(text);               // fire and forget — but lock prevents re-entry
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CORE PROCESSOR — single async function, guarded by lock
+// ─────────────────────────────────────────────────────────────────────────────
+async function processMessage(text) {
+  // ── LOCK ──
+  processing = true;
+  setInputDisabled(true);
+
+  try {
+    userSay(text);
+    await route(text);
+  } catch (err) {
+    botSay('Something went wrong. Please try again.');
+    console.error(err);
+  } finally {
+    // ── UNLOCK ──
+    processing = false;
+    setInputDisabled(false);
+    document.getElementById('chat-input').focus();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ROUTER — decides what to do based on current STATE.step
+// ─────────────────────────────────────────────────────────────────────────────
+async function route(text) {
+  const t = text.trim();
+  const lower = t.toLowerCase();
+
+  // "cancel" works from any step
+  if (lower === 'cancel' || lower === 'reset') {
+    resetState();
+    botSay('Booking cancelled. Type **I want CSE** (or any program) to start again.');
+    return;
   }
 
-  // ── Chat messaging ─────────────────────────────────────────────────────────
-  function appendBotMsg(text) {
-    const wrap = document.getElementById('chat-messages');
-    const div  = document.createElement('div');
-    div.className = 'msg bot';
-    div.innerHTML = `
-      <div class="msg-avatar">🤖</div>
-      <div class="msg-bubble">${formatText(text)}</div>`;
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
-    return div;
-  }
+  switch (STATE.step) {
 
-  function appendUserMsg(text) {
-    const wrap = document.getElementById('chat-messages');
-    const div  = document.createElement('div');
-    div.className = 'msg user';
-    div.innerHTML = `
-      <div class="msg-avatar">👤</div>
-      <div class="msg-bubble">${escapeHtml(text)}</div>`;
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
-  }
-
-  function showTyping() {
-    const wrap = document.getElementById('chat-messages');
-    const div  = document.createElement('div');
-    div.className = 'msg bot'; div.id = 'typing-indicator';
-    div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
-    wrap.appendChild(div);
-    wrap.scrollTop = wrap.scrollHeight;
-  }
-
-  function removeTyping() {
-    const el = document.getElementById('typing-indicator');
-    if (el) el.remove();
-  }
-
-  function formatText(t) {
-    return escapeHtml(t)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br/>');
-  }
-
-  function escapeHtml(t) {
-    return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  // ── Conversational flow ────────────────────────────────────────────────────
-  async function sendMessage() {
-    const input = document.getElementById('chat-input');
-    const text  = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    autoResize(input);
-    appendUserMsg(text);
-
-    // ── GUIDED BOOKING FLOW — all handled 100% on frontend, never hits /api/chat ──
-
-    if (chatState === 'collecting_name') {
-      collectedData.fullName = text;
-      chatState = 'collecting_phone';
-      appendBotMsg(`Nice to meet you, **${text}**! 😊\n\nWhat is your **phone number**?`);
+    // ── Step 1: collecting name ──────────────────────────────────────────────
+    case 'name':
+      if (t.length < 2) { botSay('Please enter your full name (at least 2 characters).'); return; }
+      STATE.data.fullName = t;
+      STATE.step = 'phone';
+      botSay(`Nice to meet you, **${t}**! 😊\n\nWhat is your **phone number**?`);
       return;
-    }
 
-    if (chatState === 'collecting_phone') {
-      // basic phone check
-      const cleaned = text.replace(/\s+/g, '');
-      if (cleaned.length < 7) {
-        appendBotMsg(`Please enter a valid phone number (e.g. 9876543210).`);
-        return;
+    // ── Step 2: collecting phone ─────────────────────────────────────────────
+    case 'phone':
+      if (t.replace(/[\s\-+()]/g, '').length < 7) {
+        botSay('Please enter a valid phone number (e.g. **9876543210**).'); return;
       }
-      collectedData.phone = text;
-      chatState = 'collecting_email';
-      appendBotMsg(`Got it! What is your **email address**?`);
+      STATE.data.phone = t;
+      STATE.step = 'email';
+      botSay('What is your **email address**?');
       return;
-    }
 
-    if (chatState === 'collecting_email') {
-      if (!text.includes('@') || !text.includes('.')) {
-        appendBotMsg(`That doesn't look like a valid email. Please enter a valid email address.`);
-        return;
+    // ── Step 3: collecting email ─────────────────────────────────────────────
+    case 'email':
+      if (!t.includes('@') || !t.includes('.')) {
+        botSay('That doesn\'t look like a valid email. Please re-enter (e.g. **you@gmail.com**).'); return;
       }
-      collectedData.email = text;
-      chatState = 'collecting_roll';
-      appendBotMsg(`What is your **Roll Number**?\n(Type **skip** if you don't have one yet)`);
+      STATE.data.email = t;
+      STATE.step = 'roll';
+      botSay('What is your **Roll Number**?\n(Type **skip** if you don\'t have one yet)');
       return;
-    }
 
-    if (chatState === 'collecting_roll') {
-      collectedData.rollNo = text.toLowerCase() === 'skip' ? '' : text;
-      chatState = 'collecting_marks';
-      appendBotMsg(`What are your **12th board marks**?\n\nYou can enter:\n• Percentage: **88** or **88%**\n• Fraction: **440/500**`);
+    // ── Step 4: collecting roll number ──────────────────────────────────────
+    case 'roll':
+      STATE.data.rollNo = lower === 'skip' ? '' : t;
+      STATE.step = 'marks';
+      botSay(
+        'What are your **12th board marks**?\n\n' +
+        'Enter as percentage: **88** or **88%**\n' +
+        'Or as fraction: **440/500**'
+      );
       return;
-    }
 
-    if (chatState === 'collecting_marks') {
-      // validate marks format before accepting
-      const parsed = parseMarks(text);
-      if (parsed === null) {
-        appendBotMsg(`I couldn't read that. Please enter your marks as a percentage (e.g. **88**) or fraction (e.g. **440/500**).`);
-        return;
+    // ── Step 5: collecting marks ─────────────────────────────────────────────
+    case 'marks': {
+      const pct = parseMarks(t);
+      if (pct === null) {
+        botSay('I couldn\'t read that. Enter as **88** or **440/500**.'); return;
       }
-      collectedData.marks     = text;
-      collectedData.marksPct  = parsed;
-      chatState = 'collecting_slot';
-      const slotList = slotOptions.length
-        ? slotOptions.map((s, i) => `  **${i+1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`).join('\n')
-        : '  _(No slots available right now)_';
-      appendBotMsg(`Great! Your marks: **${parsed}%**\n\nNow choose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
+      STATE.data.marks    = t;
+      STATE.data.marksPct = pct;
+      STATE.step = 'slot';
+      if (!slotOptions.length) {
+        botSay('Sorry, no counseling slots are available right now. Please check back later.');
+        resetState(); return;
+      }
+      const slotList = slotOptions.map((s, i) =>
+        `  **${i + 1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`
+      ).join('\n');
+      botSay(`Your marks: **${pct}%** ✅\n\nChoose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
       return;
     }
 
-    if (chatState === 'collecting_slot') {
-      const idx = parseInt(text, 10) - 1;
+    // ── Step 6: collecting slot ──────────────────────────────────────────────
+    case 'slot': {
+      const idx = parseInt(t, 10) - 1;
       if (isNaN(idx) || idx < 0 || !slotOptions[idx]) {
-        appendBotMsg(`Please enter a valid slot number between **1** and **${slotOptions.length}**.`);
-        return;
+        botSay(`Please enter a number between **1** and **${slotOptions.length}**.`); return;
       }
-      collectedData.slotId    = slotOptions[idx].id;
-      collectedData.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
-      chatState = 'confirm';
-      appendBotMsg(
-        `Almost done! Please review your details:\n\n` +
-        `🎓 **Program:** ${pendingProgram}\n` +
-        `👤 **Name:** ${collectedData.fullName}\n` +
-        `📧 **Email:** ${collectedData.email}\n` +
-        `📱 **Phone:** ${collectedData.phone}\n` +
-        `🔢 **Roll No:** ${collectedData.rollNo || '—'}\n` +
-        `📊 **12th Marks:** ${collectedData.marksPct}%\n` +
-        `📅 **Slot:** ${collectedData.slotLabel}\n\n` +
-        `Type **confirm** to book your seat, or **cancel** to start over.`
+      STATE.data.slotId    = slotOptions[idx].id;
+      STATE.data.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
+      STATE.step = 'confirm';
+      botSay(
+        '✅ Please review your details:\n\n' +
+        `🎓 **Program:** ${STATE.program}\n` +
+        `👤 **Name:** ${STATE.data.fullName}\n` +
+        `📧 **Email:** ${STATE.data.email}\n` +
+        `📱 **Phone:** ${STATE.data.phone}\n` +
+        `🔢 **Roll No:** ${STATE.data.rollNo || '—'}\n` +
+        `📊 **12th Marks:** ${STATE.data.marksPct}%\n` +
+        `📅 **Slot:** ${STATE.data.slotLabel}\n\n` +
+        'Type **yes** or **confirm** to book — or **cancel** to start over.'
       );
       return;
     }
 
-    if (chatState === 'confirm') {
-      const t = text.toLowerCase().trim();
-      if (t === 'confirm' || t === 'yes') {
-        chatState = 'idle';
+    // ── Step 7: confirmation ─────────────────────────────────────────────────
+    case 'confirm':
+      if (lower === 'yes' || lower === 'confirm' || lower === 'ok') {
         await doBooking();
-      } else if (t === 'cancel' || t === 'no') {
-        chatState = 'idle'; pendingProgram = null; collectedData = {};
-        appendBotMsg(`Booking cancelled. No worries! Type **I want CSE** (or any program) to start again.`);
       } else {
-        appendBotMsg(`Please type **confirm** to complete the booking or **cancel** to start over.`);
+        botSay('Type **yes** to confirm the booking, or **cancel** to start over.');
       }
       return;
-    }
 
-    // ── NORMAL CHAT — only reaches here when state is 'idle' ─────────────────
-    // Check for program keywords first (handled locally, no server needed)
-    const detected = detectProgramLocally(text);
-    if (detected) {
-      pendingProgram = detected;
-      chatState = 'collecting_name';
-      appendBotMsg(`Great choice — **${detected}**! 🎉\n\nLet me collect a few details to book your seat.\n\nFirst, what is your **full name**?`);
+    // ── IDLE — detect program or handle general queries ───────────────────────
+    case 'idle':
+    default:
+      await handleIdle(text);
+      return;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  IDLE HANDLER — detects program names + general keyword replies
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleIdle(text) {
+  const lower = text.toLowerCase();
+
+  // program detection
+  const prog = detectProgram(lower);
+  if (prog) {
+    STATE.program = prog;
+    STATE.step    = 'name';
+    STATE.data    = {};
+    botSay(`Great choice — **${prog}**! 🎉\n\nI'll collect a few details to book your seat.\n\nFirst, what is your **full name**?`);
+    return;
+  }
+
+  // show programs
+  if (lower.includes('program') || lower.includes('course') || lower.includes('branch') || lower.includes('show')) {
+    const r = await fetch('/api/programs');
+    const { programs } = await r.json();
+    const list = programs.map(p =>
+      `• **${p.name}** — Min: ${p.min_score}% | Seats: ${p.available_seats} left`
+    ).join('\n');
+    botSay(`Here are all available programs:\n\n${list}\n\nClick a program button or type **I want CSE** to begin!`);
+    return;
+  }
+
+  // show slots
+  if (lower.includes('slot') || lower.includes('schedule') || lower.includes('date') || lower.includes('counseling')) {
+    if (!slotOptions.length) {
+      botSay('No counseling slots are available right now. Please check back later.');
+      return;
+    }
+    const list = slotOptions.map(s =>
+      `• ${s.slot_date} at ${s.slot_time} — **${s.available}** seats left`
+    ).join('\n');
+    botSay(`Available counseling slots:\n\n${list}`);
+    return;
+  }
+
+  // booking help
+  if (lower.includes('book') || lower.includes('apply') || lower.includes('seat') || lower.includes('admission')) {
+    botSay('To book a seat, tell me which program you want!\n\nFor example: **I want CSE** — or click a button above.');
+    return;
+  }
+
+  // greeting
+  if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('help')) {
+    botSay(
+      'Hello! 👋 I\'m your **Sastra Admission Assistant**.\n\n' +
+      '• Book a seat → say **I want CSE**\n' +
+      '• See courses → say **show programs**\n' +
+      '• See slots → say **show slots**'
+    );
+    return;
+  }
+
+  // unknown — just give a helpful hint, no server call needed
+  botSay(
+    'I\'m not sure about that. Here\'s what I can do:\n\n' +
+    '• **I want CSE** — start booking\n' +
+    '• **show programs** — see all courses\n' +
+    '• **show slots** — see counseling dates\n' +
+    '• **cancel** — restart'
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  BOOKING — fires only from 'confirm' step
+// ─────────────────────────────────────────────────────────────────────────────
+async function doBooking() {
+  STATE.step = 'idle'; // reset before async call so no state leak
+  botSay('⏳ Booking your seat, please wait…');
+
+  try {
+    const r = await fetch('/api/book', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName:    STATE.data.fullName,
+        email:       STATE.data.email,
+        phone:       STATE.data.phone,
+        rollNo:      STATE.data.rollNo || '',
+        marks12:     STATE.data.marksPct,
+        programName: STATE.program,
+        slotId:      STATE.data.slotId,
+      }),
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      botSay(`❌ **Booking failed:** ${data.error}\n\nType **I want ${STATE.program}** to try again.`);
+      resetState();
       return;
     }
 
-    // keywords handled locally
-    const lower = text.toLowerCase();
-    if (lower.includes('program') || lower.includes('course') || lower.includes('branch') || lower.includes('show')) {
-      const r = await fetch('/api/programs');
-      const { programs } = await r.json();
-      const list = programs.map(p => `• **${p.name}** — Min: ${p.min_score}% | Seats left: ${p.available_seats}`).join('\n');
-      appendBotMsg(`Here are all available programs:\n\n${list}\n\nClick a program button above or type **I want CSE** to start booking!`);
-      return;
-    }
-    if (lower.includes('slot') || lower.includes('schedule') || lower.includes('date')) {
-      if (!slotOptions.length) { appendBotMsg('No counseling slots are available right now. Please check back later.'); return; }
-      const list = slotOptions.map(s => `• ${s.slot_date} at ${s.slot_time} — ${s.available} seats left`).join('\n');
-      appendBotMsg(`Available counseling slots:\n\n${list}`);
-      return;
-    }
-    if (lower.includes('book') || lower.includes('apply') || lower.includes('seat') || lower.includes('admission')) {
-      appendBotMsg(`To book a seat, just tell me which program you want!\n\nFor example: **I want CSE** or click a program button above.`);
-      return;
-    }
-    if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
-      appendBotMsg(`Hello! 👋 I'm your Admission Assistant.\n\nI can help you:\n• Book a seat → say **I want CSE**\n• See all courses → say **show programs**\n• Check slots → say **show slots**`);
-      return;
-    }
-
-    // fall back to server only for truly unknown messages
-    showTyping();
-    try {
-      const r    = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-      });
-      const data = await r.json();
-      removeTyping();
-      appendBotMsg(data.reply || `I'm not sure about that. Type **show programs** to see available courses or **I want CSE** to start booking!`);
-    } catch {
-      removeTyping();
-      appendBotMsg('Connection error. Please check your internet and try again.');
-    }
+    const b = data.booking;
+    botSay(
+      `🎉 **Seat Booked Successfully!**\n\n` +
+      `• **Booking ID:** ${b.bookingId}\n` +
+      `• **Program:** ${b.program}\n` +
+      `• **Your Marks:** ${b.marks}%\n` +
+      `• **Counseling:** ${b.slotDate} at ${b.slotTime}\n\n` +
+      `Please carry your **original marksheet** and **ID proof** on the counseling day. Best of luck! 🍀`
+    );
+    showBookingStatus(b);
+    resetState();
+    loadPrograms(); // refresh sidebar counts
+  } catch {
+    botSay('❌ Network error while booking. Please try again.');
+    resetState();
   }
+}
 
-  // ── Direct booking (no booking panel popup — fully in chat) ──────────────
-  async function doBooking() {
-    appendBotMsg(`⏳ Booking your seat, please wait…`);
-    try {
-      const r = await fetch('/api/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName:    collectedData.fullName,
-          email:       collectedData.email,
-          phone:       collectedData.phone,
-          rollNo:      collectedData.rollNo || '',
-          marks12:     collectedData.marksPct,
-          programName: pendingProgram,
-          slotId:      collectedData.slotId,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        appendBotMsg(`❌ **Booking failed:** ${data.error}\n\nType **I want ${pendingProgram}** to try again.`);
-        pendingProgram = null; collectedData = {};
-        return;
-      }
-      const b = data.booking;
-      appendBotMsg(
-        `🎉 **Seat Booked Successfully!**\n\n` +
-        `• **Booking ID:** ${b.bookingId}\n` +
-        `• **Program:** ${b.program}\n` +
-        `• **Your Marks:** ${b.marks}%\n` +
-        `• **Counseling Date:** ${b.slotDate} at ${b.slotTime}\n\n` +
-        `Please carry your **original marksheet** and **ID proof** on counseling day. Best of luck! 🍀`
-      );
-      renderBookingStatus(b);
-      pendingProgram = null; collectedData = {};
-      loadPrograms(); // refresh seat counts
-    } catch {
-      appendBotMsg(`❌ Network error while booking. Please try again.`);
-      pendingProgram = null; collectedData = {};
-    }
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function resetState() {
+  STATE.step    = 'idle';
+  STATE.program = null;
+  STATE.data    = {};
+}
 
-  // ── Local program detection (no server call) ──────────────────────────────
-  function detectProgramLocally(message) {
-    const t = message.toLowerCase().replace(/\s+/g, ' ').trim();
-    if (!t) return null;
-    if (/\b(ai\s*&?\s*data|data\s*science|aids)\b/.test(t)) return 'AI & Data Science';
-    if (/\bcse\b/.test(t) || t.includes('computer science')) return 'CSE';
-    if (/\bece\b/.test(t) || t.includes('electronics')) return 'ECE';
-    if (t.includes('mechanical') || /\bmech\b/.test(t)) return 'Mechanical';
-    if (/\bcivil\b/.test(t)) return 'Civil';
-    if (t.includes('biotechnology') || /\bbiotech\b/.test(t)) return 'Biotechnology';
-    return null;
-  }
+function detectProgram(lower) {
+  if (/\b(ai\s*&?\s*data|data\s*science|aids|ai and data)\b/.test(lower)) return 'AI & Data Science';
+  if (/\bcse\b/.test(lower) || lower.includes('computer science'))         return 'CSE';
+  if (/\bece\b/.test(lower) || lower.includes('electronics'))              return 'ECE';
+  if (lower.includes('mechanical') || /\bmech\b/.test(lower))              return 'Mechanical';
+  if (/\bcivil\b/.test(lower))                                             return 'Civil';
+  if (lower.includes('biotechnology') || /\bbiotech\b/.test(lower))       return 'Biotechnology';
+  return null;
+}
 
-  // ── Parse marks on frontend (mirrors server logic) ────────────────────────
-  function parseMarks(input) {
-    const s = String(input || '').trim();
-    const slash = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-    if (slash) {
-      const num = Number(slash[1]), den = Number(slash[2]);
-      if (den > 0) return Math.round((num / den) * 1000) / 10;
-    }
-    const n = parseFloat(s.replace(/%/g, ''));
-    if (isNaN(n)) return null;
-    if (n <= 100) return Math.round(n * 10) / 10;
-    if (n <= 600) return Math.round((n / 500) * 1000) / 10;
-    return null;
+function parseMarks(input) {
+  const s     = String(input || '').trim();
+  const slash = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (slash) {
+    const num = Number(slash[1]), den = Number(slash[2]);
+    if (den > 0) return Math.round((num / den) * 1000) / 10;
   }
+  const n = parseFloat(s.replace(/%/g, ''));
+  if (isNaN(n))  return null;
+  if (n <= 100)  return Math.round(n * 10) / 10;
+  if (n <= 600)  return Math.round((n / 500) * 1000) / 10;
+  return null;
+}
 
-  function sendQuick(text) {
-    // if currently mid-flow, don't hijack with a quick button
-    if (chatState !== 'idle') {
-      appendBotMsg(`⚠️ You're in the middle of a booking. Type **cancel** to start over, or finish the current flow.`);
-      return;
-    }
-    document.getElementById('chat-input').value = text;
-    sendMessage();
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+//  UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function botSay(text) {
+  const wrap = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble">${fmt(text)}</div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
 
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  }
+function userSay(text) {
+  const wrap = document.getElementById('chat-messages');
+  const div  = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="msg-avatar">👤</div><div class="msg-bubble">${esc(text)}</div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
 
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
-  }
+function fmt(t) {
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br/>');
+}
 
-  function renderBookingStatus(b) {
-    const card = document.getElementById('booking-status-card');
-    card.className = 'booking-status active';
-    card.innerHTML = `
-      <div class="label" style="color:var(--success);">✅ Seat Booked</div>
-      <div class="value">${b.program_name || b.program}</div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">${b.slotDate || b.slot_date} ${b.slotTime || b.slot_time}</div>
-      <div style="font-size:.78rem;color:var(--muted);">ID: ${b.bookingId || b.booking_id}</div>`;
-  }
+function esc(t) {
+  return String(t)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
-  async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login.html';
-  }
+function setInputDisabled(on) {
+  document.getElementById('chat-input').disabled = on;
+  document.getElementById('send-btn').disabled   = on;
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function showBookingStatus(b) {
+  const card = document.getElementById('booking-status-card');
+  card.className = 'booking-status active';
+  card.innerHTML = `
+    <div class="label" style="color:var(--success);">✅ Seat Booked</div>
+    <div class="value">${b.program_name || b.program}</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">
+      ${b.slotDate || b.slot_date} ${b.slotTime || b.slot_time}
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);">
+      ID: ${b.bookingId || b.booking_id}
+    </div>`;
+}
+
+async function logout() {
+  await fetch('/api/auth/logout', { method: 'POST' });
+  location.href = '/login.html';
+}
 </script>
 </body>
 </html>
