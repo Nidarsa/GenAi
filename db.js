@@ -33,6 +33,20 @@ function all(sql, params = []) {
 
 async function initDb() {
   await run(`PRAGMA foreign_keys = ON`);
+
+  // ── users (students + admin) ──────────────────────────────────────────────
+  await run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'student',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ── programs ──────────────────────────────────────────────────────────────
   await run(`
     CREATE TABLE IF NOT EXISTS programs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,6 +58,20 @@ async function initDb() {
     )
   `);
 
+  // ── seats grid ────────────────────────────────────────────────────────────
+  await run(`
+    CREATE TABLE IF NOT EXISTS seats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      program_id INTEGER NOT NULL,
+      seat_number INTEGER NOT NULL,
+      student_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'available',
+      FOREIGN KEY(program_id) REFERENCES programs(id),
+      FOREIGN KEY(student_id) REFERENCES users(id)
+    )
+  `);
+
+  // ── slots ─────────────────────────────────────────────────────────────────
   await run(`
     CREATE TABLE IF NOT EXISTS slots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,23 +83,24 @@ async function initDb() {
     )
   `);
 
+  // ── students (legacy, kept for bookings) ─────────────────────────────────
   await run(`
     CREATE TABLE IF NOT EXISTS students (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       full_name TEXT NOT NULL,
       email TEXT NOT NULL,
       phone TEXT NOT NULL,
-      score INTEGER NOT NULL,
-      interests TEXT NOT NULL,
-      career_goal TEXT NOT NULL
+      score INTEGER NOT NULL DEFAULT 0,
+      interests TEXT NOT NULL DEFAULT '',
+      career_goal TEXT NOT NULL DEFAULT '',
+      roll_no TEXT NOT NULL DEFAULT '',
+      marks_12 REAL NOT NULL DEFAULT 0,
+      FOREIGN KEY(user_id) REFERENCES users(id)
     )
   `);
 
-  const studentCols = await all(`PRAGMA table_info(students)`);
-  if (!studentCols.some((c) => c.name === "roll_no")) {
-    await run(`ALTER TABLE students ADD COLUMN roll_no TEXT NOT NULL DEFAULT ''`);
-  }
-
+  // ── bookings ──────────────────────────────────────────────────────────────
   await run(`
     CREATE TABLE IF NOT EXISTS bookings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +108,7 @@ async function initDb() {
       student_id INTEGER NOT NULL,
       program_id INTEGER NOT NULL,
       slot_id INTEGER NOT NULL,
+      seat_id INTEGER,
       status TEXT NOT NULL DEFAULT 'CONFIRMED',
       created_at TEXT NOT NULL,
       FOREIGN KEY(student_id) REFERENCES students(id),
@@ -87,31 +117,64 @@ async function initDb() {
     )
   `);
 
+  // ── migrations ────────────────────────────────────────────────────────────
+  const studentCols = await all(`PRAGMA table_info(students)`);
+  if (!studentCols.some((c) => c.name === "roll_no"))
+    await run(`ALTER TABLE students ADD COLUMN roll_no TEXT NOT NULL DEFAULT ''`);
+  if (!studentCols.some((c) => c.name === "marks_12"))
+    await run(`ALTER TABLE students ADD COLUMN marks_12 REAL NOT NULL DEFAULT 0`);
+  if (!studentCols.some((c) => c.name === "user_id"))
+    await run(`ALTER TABLE students ADD COLUMN user_id INTEGER`);
+
+  const bookingCols = await all(`PRAGMA table_info(bookings)`);
+  if (!bookingCols.some((c) => c.name === "seat_id"))
+    await run(`ALTER TABLE bookings ADD COLUMN seat_id INTEGER`);
+
+  // ── seed admin ────────────────────────────────────────────────────────────
+  const bcrypt = require("bcryptjs");
+  const adminExists = await get(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`);
+  if (!adminExists) {
+    const hash = await bcrypt.hash("admin123", 10);
+    await run(
+      `INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, 'admin')`,
+      ["Administrator", "admin@college.edu", hash]
+    );
+  }
+
+  // ── seed programs ─────────────────────────────────────────────────────────
   const programCount = await get(`SELECT COUNT(*) as count FROM programs`);
   if (!programCount || programCount.count === 0) {
     const programs = [
-      ["Sastra Deemed University", "CSE", 120, 0, 70],
-      ["Sastra Deemed University", "AI & Data Science", 90, 0, 75],
-      ["Sastra Deemed University", "ECE", 100, 0, 65],
-      ["Sastra Deemed University", "Mechanical", 80, 0, 55],
-      ["Sastra Deemed University", "Civil", 70, 0, 50],
-      ["Sastra Deemed University", "Biotechnology", 60, 0, 60],
+      ["College", "CSE", 50, 0, 85],
+      ["College", "AI & Data Science", 40, 0, 80],
+      ["College", "Mechanical", 40, 0, 80],
+      ["College", "ECE", 40, 0, 75],
+      ["College", "Civil", 30, 0, 70],
+      ["College", "Biotechnology", 30, 0, 70],
     ];
     for (const p of programs) {
-      await run(
+      const result = await run(
         `INSERT INTO programs (college_name, name, total_seats, filled_seats, min_score) VALUES (?, ?, ?, ?, ?)`,
         p
       );
+      // create seat rows
+      for (let i = 1; i <= p[2]; i++) {
+        await run(`INSERT INTO seats (program_id, seat_number, status) VALUES (?, ?, 'available')`, [
+          result.lastID,
+          i,
+        ]);
+      }
     }
   }
 
+  // ── seed slots ────────────────────────────────────────────────────────────
   const slotCount = await get(`SELECT COUNT(*) as count FROM slots`);
   if (!slotCount || slotCount.count === 0) {
     const slots = [
-      ["2026-04-02", "10:00 AM", 25, 0, 1],
-      ["2026-04-02", "02:00 PM", 25, 0, 1],
-      ["2026-04-03", "10:00 AM", 25, 0, 1],
-      ["2026-04-03", "02:00 PM", 25, 0, 1],
+      ["2026-07-10", "10:00 AM", 30, 0, 1],
+      ["2026-07-10", "02:00 PM", 30, 0, 1],
+      ["2026-07-11", "10:00 AM", 30, 0, 1],
+      ["2026-07-11", "02:00 PM", 30, 0, 1],
     ];
     for (const s of slots) {
       await run(

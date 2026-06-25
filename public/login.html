@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — College Admission Portal</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<div class="auth-wrapper">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="icon">🎓</div>
+      <h1>College Admission Portal</h1>
+      <p>Sign in to continue</p>
+    </div>
+
+    <!-- Tabs: Student / Admin -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-student" onclick="switchTab('student')">🎒 Student</button>
+      <button class="auth-tab" id="tab-admin"   onclick="switchTab('admin')">🛡️ Admin</button>
+    </div>
+
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" class="form-control" placeholder="you@example.com" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" class="form-control" placeholder="••••••••" required />
+      </div>
+
+      <!-- Admin hint -->
+      <div id="admin-hint" style="display:none; margin-bottom:.8rem;">
+        <div class="alert alert-info show" style="margin:0;">
+          🛡️ Admin credentials: <strong>admin@college.edu</strong> / <strong>admin123</strong>
+        </div>
+      </div>
+
+      <div class="alert" id="login-alert"></div>
+
+      <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+        <span id="login-label">Sign In</span>
+      </button>
+    </form>
+
+    <div id="student-switch" class="auth-switch">
+      Don't have an account? <a href="/register.html">Register here</a>
+    </div>
+    <div id="admin-switch" class="auth-switch" style="display:none;">
+      Admin access only. Contact IT support to reset credentials.
+    </div>
+  </div>
+</div>
+
+<script>
+  let activeRole = 'student';
+
+  function switchTab(role) {
+    activeRole = role;
+    document.getElementById('tab-student').classList.toggle('active', role === 'student');
+    document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
+    document.getElementById('admin-hint').style.display   = role === 'admin'   ? 'block' : 'none';
+    document.getElementById('student-switch').style.display = role === 'student' ? 'block' : 'none';
+    document.getElementById('admin-switch').style.display   = role === 'admin'   ? 'block' : 'none';
+    hideAlert();
+  }
+
+  function showAlert(msg, type = 'error') {
+    const el = document.getElementById('login-alert');
+    el.textContent = msg;
+    el.className = `alert alert-${type} show`;
+  }
+  function hideAlert() {
+    const el = document.getElementById('login-alert');
+    el.className = 'alert';
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    hideAlert();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn      = document.getElementById('login-btn');
+    const label    = document.getElementById('login-label');
+
+    btn.disabled = true;
+    label.textContent = 'Signing in…';
+
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showAlert(data.error || 'Login failed.'); return; }
+
+      // role check
+      if (activeRole === 'admin' && data.role !== 'admin') {
+        showAlert('This account does not have admin access.'); return;
+      }
+      if (activeRole === 'student' && data.role !== 'student') {
+        showAlert('Please use the Admin tab to sign in as admin.'); return;
+      }
+
+      showAlert('Login successful! Redirecting…', 'success');
+      setTimeout(() => { window.location.href = data.redirect; }, 600);
+    } catch {
+      showAlert('Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      label.textContent = 'Sign In';
+    }
+  }
+</script>
+</body>
+</html>

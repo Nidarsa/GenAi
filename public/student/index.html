@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Portal — Admission Chatbot</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { overflow: hidden; }
+    strong { font-weight: 700; }
+    .msg-bubble strong { font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="navbar-brand"><span class="icon">🎓</span> Admission Portal</div>
+  <div class="navbar-right">
+    <div class="navbar-user">Welcome, <span id="nav-name">Student</span></div>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="student-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Profile -->
+    <div>
+      <h3>My Profile</h3>
+      <div class="profile-card">
+        <div class="name" id="profile-name">Loading…</div>
+        <div class="role">Student Applicant</div>
+      </div>
+    </div>
+
+    <!-- Booking Status -->
+    <div>
+      <h3>Booking Status</h3>
+      <div class="booking-status none" id="booking-status-card">
+        <div class="label">No Booking Yet</div>
+        <div class="value" style="color:var(--muted);font-size:.82rem;">Complete the chat to book a seat</div>
+      </div>
+    </div>
+
+    <!-- Programs -->
+    <div>
+      <h3>Available Programs</h3>
+      <div class="programs-list" id="programs-list">
+        <div style="font-size:.82rem;color:var(--muted);">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Quick links -->
+    <div style="margin-top:auto;">
+      <h3>Quick Actions</h3>
+      <div style="display:flex;flex-direction:column;gap:.4rem;">
+        <button class="program-chip" onclick="sendQuick('Show all programs and cutoffs')">📋 View All Courses</button>
+        <button class="program-chip" onclick="sendQuick('Show available counseling slots')">📅 View Slots</button>
+        <button class="program-chip" onclick="sendQuick('Suggest based on my interests')">💡 Get Recommendation</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CHAT + BOOKING -->
+  <div class="chat-area">
+
+    <!-- Chat header -->
+    <div class="chat-header">
+      <div class="bot-avatar">🤖</div>
+      <div>
+        <h2>Admission Assistant</h2>
+        <p>Ask me anything about courses, seats, and bookings</p>
+      </div>
+      <div class="chat-online"></div>
+    </div>
+
+    <!-- Quick action pills -->
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="sendQuick('I want CSE')">💻 CSE</button>
+      <button class="quick-btn" onclick="sendQuick('I want AI & Data Science')">🤖 AI & DS</button>
+      <button class="quick-btn" onclick="sendQuick('I want Mechanical')">⚙️ Mechanical</button>
+      <button class="quick-btn" onclick="sendQuick('I want ECE')">📡 ECE</button>
+      <button class="quick-btn" onclick="sendQuick('I want Civil')">🏗️ Civil</button>
+      <button class="quick-btn" onclick="sendQuick('I want Biotechnology')">🧬 Biotech</button>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chat-messages"></div>
+
+    <!-- Booking form (hidden until triggered) -->
+    <div class="booking-panel" id="booking-panel">
+      <h3>📝 Book Your Seat — <span id="bp-program">Program</span></h3>
+      <form onsubmit="submitBooking(event)">
+        <div class="booking-grid">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="bp-name" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="bp-email" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>Phone *</label>
+            <input type="tel" id="bp-phone" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label>Roll Number</label>
+            <input type="text" id="bp-roll" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>12th Marks * (% or 440/500)</label>
+            <input type="text" id="bp-marks" class="form-control" placeholder="e.g. 88 or 440/500" required />
+          </div>
+          <div class="form-group">
+            <label>Counseling Slot *</label>
+            <select id="bp-slot" class="form-control" required></select>
+          </div>
+        </div>
+        <div class="alert" id="bp-alert"></div>
+        <div style="display:flex;gap:.7rem;margin-top:.5rem;">
+          <button type="submit" class="btn btn-primary" id="bp-submit-btn">Confirm Booking</button>
+          <button type="button" class="btn btn-outline" onclick="closeBookingPanel()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Input -->
+    <div class="chat-input-area">
+      <textarea id="chat-input" rows="1" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="btn btn-primary" onclick="sendMessage()">Send ➤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let chatState = 'idle'; // idle | collecting_name | collecting_roll | collecting_marks | collecting_slot | confirm
+  let pendingProgram = null;
+  let collectedData  = {};
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  (async () => {
+    try {
+      const r = await fetch('/api/auth/me');
+      if (!r.ok) { window.location.href = '/login.html'; return; }
+      const { user } = await r.json();
+      document.getElementById('nav-name').textContent = user.full_name;
+      document.getElementById('profile-name').textContent = user.full_name;
+    } catch { window.location.href = '/login.html'; }
+
+    loadPrograms();
+    loadProfile();
+    loadSlots();
+    appendBotMsg(`👋 Hello! I'm your Admission Assistant.\n\nI can help you:\n• Book a seat in a program\n• Show available courses & cutoffs\n• Give program recommendations based on your marks\n\nClick any program above or type **I want CSE** to get started!`);
+  })();
+
+  // ── Load data ──────────────────────────────────────────────────────────────
+  async function loadPrograms() {
+    const r = await fetch('/api/programs');
+    const { programs } = await r.json();
+    const list = document.getElementById('programs-list');
+    list.innerHTML = programs.map(p => `
+      <div class="program-chip" onclick="sendQuick('I want ${p.name}')">
+        <span>${p.name}</span>
+        <span class="seats">${p.available_seats} seats</span>
+      </div>`).join('');
+  }
+
+  async function loadProfile() {
+    try {
+      const r = await fetch('/api/student/profile');
+      if (!r.ok) return;
+      const { booking } = await r.json();
+      if (booking) renderBookingStatus(booking);
+    } catch {}
+  }
+
+  let slotOptions = [];
+  async function loadSlots() {
+    const r = await fetch('/api/slots');
+    const { slots } = await r.json();
+    slotOptions = slots.filter(s => s.available > 0);
+    const sel = document.getElementById('bp-slot');
+    sel.innerHTML = slotOptions.map(s =>
+      `<option value="${s.id}">${s.slot_date} at ${s.slot_time} (${s.available} left)</option>`
+    ).join('');
+  }
+
+  // ── Chat messaging ─────────────────────────────────────────────────────────
+  function appendBotMsg(text) {
+    const wrap = document.getElementById('chat-messages');
+    const div  = document.createElement('div');
+    div.className = 'msg bot';
+    div.innerHTML = `
+      <div class="msg-avatar">🤖</div>
+      <div class="msg-bubble">${formatText(text)}</div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+    return div;
+  }
+
+  function appendUserMsg(text) {
+    const wrap = document.getElementById('chat-messages');
+    const div  = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `
+      <div class="msg-avatar">👤</div>
+      <div class="msg-bubble">${escapeHtml(text)}</div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function showTyping() {
+    const wrap = document.getElementById('chat-messages');
+    const div  = document.createElement('div');
+    div.className = 'msg bot'; div.id = 'typing-indicator';
+    div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  function formatText(t) {
+    return escapeHtml(t)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br/>');
+  }
+
+  function escapeHtml(t) {
+    return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Conversational flow ────────────────────────────────────────────────────
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    autoResize(input);
+    appendUserMsg(text);
+
+    // Handle guided booking flow
+    if (chatState === 'collecting_name') {
+      collectedData.fullName = text;
+      chatState = 'collecting_roll';
+      appendBotMsg(`Thanks, **${text}**! Now, what is your Roll Number (or type "skip")?`);
+      return;
+    }
+    if (chatState === 'collecting_roll') {
+      collectedData.rollNo = text.toLowerCase() === 'skip' ? '' : text;
+      chatState = 'collecting_marks';
+      appendBotMsg(`Got it! What are your **12th board marks**?\nYou can enter percentage (e.g., **88**) or fraction (e.g., **440/500**).`);
+      return;
+    }
+    if (chatState === 'collecting_marks') {
+      collectedData.marks = text;
+      chatState = 'collecting_slot';
+      const slotList = slotOptions.map((s,i) => `  ${i+1}. ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`).join('\n');
+      appendBotMsg(`Perfect! Choose a counseling slot:\n${slotList || 'No slots available.'}\n\nReply with the slot number (e.g., **1**) or type the date.`);
+      return;
+    }
+    if (chatState === 'collecting_slot') {
+      const idx = parseInt(text) - 1;
+      if (!isNaN(idx) && slotOptions[idx]) {
+        collectedData.slotId = slotOptions[idx].id;
+        collectedData.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
+      } else {
+        const found = slotOptions.find(s => text.includes(s.slot_date));
+        if (found) { collectedData.slotId = found.id; collectedData.slotLabel = `${found.slot_date} at ${found.slot_time}`; }
+        else { appendBotMsg(`Please enter a valid slot number (1–${slotOptions.length}).`); return; }
+      }
+      chatState = 'confirm';
+      appendBotMsg(
+        `Almost done! Here's a summary:\n\n` +
+        `• **Program:** ${pendingProgram}\n` +
+        `• **Name:** ${collectedData.fullName}\n` +
+        `• **Roll No:** ${collectedData.rollNo || '—'}\n` +
+        `• **12th Marks:** ${collectedData.marks}\n` +
+        `• **Slot:** ${collectedData.slotLabel}\n\n` +
+        `Type **confirm** to book, or **cancel** to start over.`
+      );
+      return;
+    }
+    if (chatState === 'confirm') {
+      if (text.toLowerCase() === 'confirm') {
+        openBookingPanel(pendingProgram, collectedData);
+        chatState = 'idle';
+      } else if (text.toLowerCase() === 'cancel') {
+        chatState = 'idle'; pendingProgram = null; collectedData = {};
+        appendBotMsg('Booking cancelled. How else can I help you?');
+      } else {
+        appendBotMsg('Please type **confirm** to proceed or **cancel** to start over.');
+      }
+      return;
+    }
+
+    // Normal chat
+    showTyping();
+    try {
+      const r    = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await r.json();
+      removeTyping();
+
+      if (data.action === 'start_conversation' && data.suggestedProgram) {
+        pendingProgram = data.suggestedProgram;
+        chatState = 'collecting_name';
+      }
+      appendBotMsg(data.reply || 'Sorry, I didn\'t understand that.');
+    } catch {
+      removeTyping();
+      appendBotMsg('Connection error. Please try again.');
+    }
+  }
+
+  function sendQuick(text) {
+    document.getElementById('chat-input').value = text;
+    sendMessage();
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+  }
+
+  // ── Booking Panel ──────────────────────────────────────────────────────────
+  function openBookingPanel(program, prefill = {}) {
+    document.getElementById('bp-program').textContent = program;
+    if (prefill.fullName) document.getElementById('bp-name').value  = prefill.fullName;
+    if (prefill.rollNo)   document.getElementById('bp-roll').value  = prefill.rollNo;
+    if (prefill.marks)    document.getElementById('bp-marks').value = prefill.marks;
+    if (prefill.slotId)   document.getElementById('bp-slot').value  = prefill.slotId;
+    document.getElementById('booking-panel').classList.add('open');
+    document.getElementById('bp-name').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeBookingPanel() {
+    document.getElementById('booking-panel').classList.remove('open');
+    document.getElementById('bp-alert').className = 'alert';
+    chatState = 'idle'; pendingProgram = null; collectedData = {};
+  }
+
+  async function submitBooking(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('bp-alert');
+    alertEl.className = 'alert';
+
+    const fullName    = document.getElementById('bp-name').value.trim();
+    const email       = document.getElementById('bp-email').value.trim();
+    const phone       = document.getElementById('bp-phone').value.trim();
+    const rollNo      = document.getElementById('bp-roll').value.trim();
+    const marks12     = document.getElementById('bp-marks').value.trim();
+    const slotId      = document.getElementById('bp-slot').value;
+    const programName = document.getElementById('bp-program').textContent;
+    const btn         = document.getElementById('bp-submit-btn');
+
+    btn.disabled = true; btn.textContent = 'Booking…';
+
+    try {
+      const r    = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fullName, email, phone, rollNo, marks12, programName, slotId }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        alertEl.textContent = data.error;
+        alertEl.className   = 'alert alert-error show';
+        return;
+      }
+      closeBookingPanel();
+      const b = data.booking;
+      appendBotMsg(
+        `🎉 **Booking Confirmed!**\n\n` +
+        `• **Booking ID:** ${b.bookingId}\n` +
+        `• **Program:** ${b.program}\n` +
+        `• **Your Marks:** ${b.marks}%\n` +
+        `• **Slot:** ${b.slotDate} at ${b.slotTime}\n\n` +
+        `Please carry your original marksheet and ID proof on the counseling day. Best of luck! 🍀`
+      );
+      renderBookingStatus(b);
+    } catch {
+      alertEl.textContent = 'Network error. Please try again.';
+      alertEl.className   = 'alert alert-error show';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Confirm Booking';
+    }
+  }
+
+  function renderBookingStatus(b) {
+    const card = document.getElementById('booking-status-card');
+    card.className = 'booking-status active';
+    card.innerHTML = `
+      <div class="label" style="color:var(--success);">✅ Seat Booked</div>
+      <div class="value">${b.program_name || b.program}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">${b.slotDate || b.slot_date} ${b.slotTime || b.slot_time}</div>
+      <div style="font-size:.78rem;color:var(--muted);">ID: ${b.bookingId || b.booking_id}</div>`;
+  }
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login.html';
+  }
+</script>
+</body>
+</html>
