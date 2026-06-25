@@ -3,22 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login — College Admission Portal</title>
+  <title>Login — Sastra Deemed University</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .auth-wrapper {
+      background: linear-gradient(135deg, #1e3a5f 0%, #4f46e5 60%, #06b6d4 100%);
+    }
+    .sastra-header {
+      text-align: center;
+      margin-bottom: 1.8rem;
+    }
+    .sastra-header .uni-icon {
+      font-size: 3.2rem;
+      line-height: 1;
+    }
+    .sastra-header .welcome-text {
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #06b6d4;
+      margin-top: .5rem;
+    }
+    .sastra-header h1 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin-top: .25rem;
+      line-height: 1.25;
+    }
+    .sastra-header .subtitle {
+      font-size: .85rem;
+      color: #64748b;
+      margin-top: .3rem;
+    }
+    .sastra-divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 1.2rem 0;
+    }
+  </style>
 </head>
 <body>
 <div class="auth-wrapper">
   <div class="auth-box">
-    <div class="auth-logo">
-      <div class="icon">🎓</div>
-      <h1>College Admission Portal</h1>
-      <p>Sign in to continue</p>
+
+    <!-- Sastra Branding -->
+    <div class="sastra-header">
+      <div class="uni-icon">🏛️</div>
+      <div class="welcome-text">Welcome to</div>
+      <h1>Sastra Deemed University</h1>
+      <div class="subtitle">Online Admission Portal — 2026</div>
     </div>
 
-    <!-- Tabs: Student / Admin -->
+    <hr class="sastra-divider" />
+
+    <!-- Tabs -->
     <div class="auth-tabs">
-      <button class="auth-tab active" id="tab-student" onclick="switchTab('student')">🎒 Student</button>
-      <button class="auth-tab" id="tab-admin"   onclick="switchTab('admin')">🛡️ Admin</button>
+      <button class="auth-tab active" id="tab-student" onclick="switchTab('student')">🎒 Student Login</button>
+      <button class="auth-tab"        id="tab-admin"   onclick="switchTab('admin')">🛡️ Admin Login</button>
     </div>
 
     <form id="login-form" onsubmit="handleLogin(event)">
@@ -31,10 +74,9 @@
         <input type="password" id="password" class="form-control" placeholder="••••••••" required />
       </div>
 
-      <!-- Admin hint -->
-      <div id="admin-hint" style="display:none; margin-bottom:.8rem;">
+      <div id="admin-hint" style="display:none;margin-bottom:.9rem;">
         <div class="alert alert-info show" style="margin:0;">
-          🛡️ Admin credentials: <strong>admin@college.edu</strong> / <strong>admin123</strong>
+          🛡️ Default admin — <strong>admin@college.edu</strong> / <strong>admin123</strong>
         </div>
       </div>
 
@@ -45,11 +87,11 @@
       </button>
     </form>
 
-    <div id="student-switch" class="auth-switch">
-      Don't have an account? <a href="/register.html">Register here</a>
+    <div id="student-switch" class="auth-switch" style="margin-top:1rem;">
+      New applicant? <a href="/register.html">Create an account</a>
     </div>
-    <div id="admin-switch" class="auth-switch" style="display:none;">
-      Admin access only. Contact IT support to reset credentials.
+    <div id="admin-switch" class="auth-switch" style="display:none;margin-top:1rem;">
+      Admin access only. Contact IT to reset credentials.
     </div>
   </div>
 </div>
@@ -60,21 +102,20 @@
   function switchTab(role) {
     activeRole = role;
     document.getElementById('tab-student').classList.toggle('active', role === 'student');
-    document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
-    document.getElementById('admin-hint').style.display   = role === 'admin'   ? 'block' : 'none';
-    document.getElementById('student-switch').style.display = role === 'student' ? 'block' : 'none';
-    document.getElementById('admin-switch').style.display   = role === 'admin'   ? 'block' : 'none';
+    document.getElementById('tab-admin').classList.toggle('active',   role === 'admin');
+    document.getElementById('admin-hint').style.display      = role === 'admin'   ? 'block' : 'none';
+    document.getElementById('student-switch').style.display  = role === 'student' ? 'block' : 'none';
+    document.getElementById('admin-switch').style.display    = role === 'admin'   ? 'block' : 'none';
     hideAlert();
   }
 
-  function showAlert(msg, type = 'error') {
+  function showAlert(msg, type='error') {
     const el = document.getElementById('login-alert');
     el.textContent = msg;
-    el.className = `alert alert-${type} show`;
+    el.className = 'alert alert-' + type + ' show';
   }
   function hideAlert() {
-    const el = document.getElementById('login-alert');
-    el.className = 'alert';
+    document.getElementById('login-alert').className = 'alert';
   }
 
   async function handleLogin(e) {
@@ -84,9 +125,7 @@
     const password = document.getElementById('password').value;
     const btn      = document.getElementById('login-btn');
     const label    = document.getElementById('login-label');
-
-    btn.disabled = true;
-    label.textContent = 'Signing in…';
+    btn.disabled = true; label.textContent = 'Signing in…';
 
     try {
       const res  = await fetch('/api/auth/login', {
@@ -97,7 +136,6 @@
       const data = await res.json();
       if (!res.ok) { showAlert(data.error || 'Login failed.'); return; }
 
-      // role check
       if (activeRole === 'admin' && data.role !== 'admin') {
         showAlert('This account does not have admin access.'); return;
       }
@@ -110,8 +148,7 @@
     } catch {
       showAlert('Network error. Please try again.');
     } finally {
-      btn.disabled = false;
-      label.textContent = 'Sign In';
+      btn.disabled = false; label.textContent = 'Sign In';
     }
   }
 </script>

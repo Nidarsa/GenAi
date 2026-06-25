@@ -1,60 +1,128 @@
-# Sastra Admission Chatbot
+# 🎓 College Admission Portal
 
-Chatbot-style web application to collect student details, suggest programs by interests, and automatically book admission slots for Sastra Deemed University.
+A full-stack admission system with student chatbot, seat allocation, and admin dashboard.
 
-## Features
+---
 
-- ChatGPT-like chat interface for admission queries.
-- Program recommendation based on score and interests.
-- Auto booking to first available slot.
-- Seat and slot availability tracking in SQLite.
-- Transaction-based booking flow to avoid overbooking.
-- Basic admin endpoint to view bookings.
+## ⚡ Quick Start (3 steps)
 
-## Tech Stack
+### Requirements
+- [Node.js](https://nodejs.org/) v16 or above  
+- npm (comes with Node.js)
 
-- Frontend: HTML, CSS, Vanilla JavaScript
-- Backend: Node.js, Express
-- Database: SQLite (`data.sqlite`)
-
-## Run Locally
-
-1. Install dependencies:
+### Steps
 
 ```bash
+# 1. Go into the project folder
+cd GenAi
+
+# 2. Install all dependencies
 npm install
-```
 
-2. Start the server:
-
-```bash
+# 3. Start the server
 npm start
 ```
 
-3. Open:
+Then open your browser at → **http://localhost:3000**
 
-`http://localhost:3000`
+---
 
-Optional (for AI-generated chatbot replies):
+## 🔐 Login Credentials
 
-- Copy `.env.example` to `.env`
-- Set `OPENAI_API_KEY=...`
+| Role    | Email                  | Password   |
+|---------|------------------------|------------|
+| Admin   | admin@college.edu      | admin123   |
+| Student | Register at /register.html | your choice |
 
-## Main APIs
+---
 
-- `POST /api/chat` - basic chatbot intent replies.
-- `POST /api/recommend` - suggest programs from score/interests.
-- `POST /api/book` - finalize admission booking.
-- `GET /api/programs` - list programs and available seats.
-- `GET /api/slots` - list available slots.
-- `GET /api/admin/bookings` - list all bookings.
+## 📁 Project Structure
 
-## Chat Flow Input Format
+```
+GenAi/
+├── server.js              ← Main Express server & all API routes
+├── db.js                  ← SQLite database setup & seed data
+├── documentQuestions.js   ← PDF/text analysis helper
+├── package.json           ← Dependencies
+├── .env                   ← Config (port, session secret, college name)
+├── data.sqlite            ← Auto-created on first run (do NOT delete)
+└── public/
+    ├── login.html         ← Login page (Student + Admin tabs)
+    ├── register.html      ← Student registration page
+    ├── css/style.css      ← All styles
+    ├── student/
+    │   └── index.html     ← Student chatbot + booking page
+    └── admin/
+        └── index.html     ← Admin dashboard (4 sections)
+```
 
-For booking details, send in one message:
+---
 
-`Name, Email, Phone, Score, Interests, Career Goal`
+## 🤖 How the Student Chatbot Works
 
-Example:
+1. Register → Login as Student
+2. Click a program button (CSE, AI & DS, Mechanical…) or type **"I want CSE"**
+3. Bot guides you step-by-step:
+   - Asks your **Full Name**
+   - Asks your **Roll Number**
+   - Asks your **12th Marks** (enter as `88` or `440/500`)
+   - Shows available **counseling slots**, you pick one
+   - Shows a **summary** — type `confirm` to book
+4. Seat is instantly reserved and your booking ID is shown
 
-`Arun Kumar, arun@mail.com, 9876543210, 86, coding ai data, software engineer`
+---
+
+## 📊 Seat Allocation Algorithm
+
+| Program          | Minimum Marks |
+|------------------|---------------|
+| CSE              | 85%           |
+| AI & Data Science| 80%           |
+| Mechanical       | 80%           |
+| ECE              | 75%           |
+| Civil            | 70%           |
+| Biotechnology    | 70%           |
+
+- Students **below** the cutoff are blocked from booking that program
+- Admin can **change** cutoffs and seat counts anytime from the dashboard
+- First available seat is auto-assigned in order
+
+---
+
+## 🛡️ Admin Dashboard
+
+Access at `/admin` after logging in as admin.
+
+| Section          | What you can do |
+|------------------|-----------------|
+| Overview         | Live stats: students, bookings, programs, available seats |
+| Manage Courses   | Add / Edit / Delete programs, set seats & min marks |
+| Seat Grid        | 🟢 Green = available, 🔴 Red = booked (hover = student name) |
+| All Bookings     | Full table: student, marks, program, slot, booking ID |
+
+---
+
+## ⚙️ Configuration (.env)
+
+| Key              | Default                    | Description              |
+|------------------|----------------------------|--------------------------|
+| PORT             | 3000                       | Server port              |
+| SESSION_SECRET   | college_secret_2026        | Session encryption key   |
+| COLLEGE_NAME     | Sastra Deemed University   | Shown throughout the UI  |
+| OPENAI_API_KEY   | *(empty)*                  | Optional — enables AI replies in chat |
+
+---
+
+## 🔧 Troubleshooting
+
+**`npm install` fails?**  
+Make sure Node.js v16+ is installed: `node --version`
+
+**Port 3000 already in use?**  
+Change `PORT=3001` in `.env` and restart.
+
+**`data.sqlite` error?**  
+Delete `data.sqlite` and restart — it will be recreated fresh with seed data.
+
+**Blank page / 404?**  
+Make sure you're visiting `http://localhost:3000` (not opening the HTML file directly).

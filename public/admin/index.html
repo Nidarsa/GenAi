@@ -3,284 +3,250 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard — College Admission Portal</title>
+  <title>Admin Dashboard — Sastra Deemed University</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .search-bar { padding:.5rem 1rem; border:1.5px solid var(--border); border-radius:8px; font-size:.9rem; width:260px; }
+    .search-bar:focus { outline:none; border-color:var(--primary); }
+    .tbl-actions { display:flex; gap:.4rem; }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:.8rem; }
+  </style>
 </head>
 <body>
 
+
 <!-- NAVBAR -->
 <nav class="navbar">
-  <div class="navbar-brand"><span class="icon">🛡️</span> Admin Dashboard</div>
+  <div class="navbar-brand"><span class="icon">🎓</span> Sastra Deemed University — Admin</div>
   <div class="navbar-right">
     <div class="navbar-user">Logged in as <span>Administrator</span></div>
     <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
   </div>
 </nav>
 
-<!-- ADMIN LAYOUT -->
+<!-- LAYOUT -->
 <div class="admin-layout">
-
-  <!-- SIDEBAR -->
   <aside class="admin-sidebar">
-    <div class="logo">🎓 Admission Portal</div>
+    <div class="logo">🏛️ Sastra Admin</div>
     <nav class="admin-nav">
-      <div class="admin-nav-item active" onclick="showSection('overview')" id="nav-overview">
-        <span class="icon">📊</span> Overview
-      </div>
-      <div class="admin-nav-item" onclick="showSection('programs')" id="nav-programs">
-        <span class="icon">📚</span> Manage Courses
-      </div>
-      <div class="admin-nav-item" onclick="showSection('seats')" id="nav-seats">
-        <span class="icon">💺</span> Seat Grid
-      </div>
-      <div class="admin-nav-item" onclick="showSection('bookings')" id="nav-bookings">
-        <span class="icon">📋</span> All Bookings
-      </div>
+      <div class="admin-nav-item active" onclick="showSection('overview')"  id="nav-overview"> <span class="icon">📊</span> Overview</div>
+      <div class="admin-nav-item"        onclick="showSection('programs')"  id="nav-programs"> <span class="icon">📚</span> Manage Courses</div>
+      <div class="admin-nav-item"        onclick="showSection('students')"  id="nav-students"> <span class="icon">👨‍🎓</span> Students</div>
+      <div class="admin-nav-item"        onclick="showSection('bookings')"  id="nav-bookings"> <span class="icon">📋</span> All Bookings</div>
+      <div class="admin-nav-item"        onclick="showSection('seats')"     id="nav-seats">    <span class="icon">💺</span> Seat Grid</div>
     </nav>
-    <div style="padding:1rem 1.4rem;font-size:.78rem;color:#475569;border-top:1px solid #334155;">
-      ⚙️ Admin v1.0
-    </div>
+    <div style="padding:1rem 1.4rem;font-size:.78rem;color:#475569;border-top:1px solid #334155;">⚙️ Admin v2.0</div>
   </aside>
 
-  <!-- MAIN CONTENT -->
   <main class="admin-main">
 
-    <!-- ── OVERVIEW ─────────────────────────────────────────────────────── -->
+
+    <!-- ── OVERVIEW ── -->
     <section class="admin-content active" id="section-overview">
-      <div class="page-title">
-        <h1>📊 Dashboard Overview</h1>
-        <p>Real-time admission statistics</p>
-      </div>
-
+      <div class="page-title"><h1>📊 Dashboard Overview</h1><p>Welcome to Sastra Deemed University Admission Portal</p></div>
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon blue">👨‍🎓</div>
-          <div>
-            <div class="stat-label">Total Students</div>
-            <div class="stat-value" id="stat-students">—</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green">✅</div>
-          <div>
-            <div class="stat-label">Bookings</div>
-            <div class="stat-value" id="stat-bookings">—</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon orange">📚</div>
-          <div>
-            <div class="stat-label">Programs</div>
-            <div class="stat-value" id="stat-programs">—</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon cyan">💺</div>
-          <div>
-            <div class="stat-label">Available Seats</div>
-            <div class="stat-value" id="stat-seats">—</div>
-          </div>
-        </div>
+        <div class="stat-card"><div class="stat-icon blue">👨‍🎓</div><div><div class="stat-label">Registered Students</div><div class="stat-value" id="stat-students">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-label">Total Bookings</div><div class="stat-value" id="stat-bookings">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon orange">📚</div><div><div class="stat-label">Programs</div><div class="stat-value" id="stat-programs">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon cyan">💺</div><div><div class="stat-label">Available Seats</div><div class="stat-value" id="stat-seats">—</div></div></div>
       </div>
-
-      <!-- Programs overview table -->
       <div class="table-wrap">
-        <div class="table-header">
-          <h2>Program Fill Status</h2>
-          <button class="btn btn-primary btn-sm" onclick="showSection('programs')">Manage Courses</button>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Program</th>
-              <th>Min. Marks</th>
-              <th>Total Seats</th>
-              <th>Booked</th>
-              <th>Available</th>
-              <th>Fill %</th>
-            </tr>
-          </thead>
-          <tbody id="overview-programs-body"></tbody>
-        </table>
+        <div class="table-header"><h2>Program Fill Status</h2><button class="btn btn-primary btn-sm" onclick="showSection('programs')">Manage Courses</button></div>
+        <table><thead><tr><th>Program</th><th>Min. Marks</th><th>Total Seats</th><th>Booked</th><th>Available</th><th>Fill %</th></tr></thead>
+        <tbody id="overview-programs-body"></tbody></table>
       </div>
     </section>
 
-    <!-- ── MANAGE COURSES ────────────────────────────────────────────────── -->
+
+    <!-- ── MANAGE COURSES ── -->
     <section class="admin-content" id="section-programs">
-      <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <h1>📚 Manage Courses</h1>
-          <p>Add, edit, or remove admission programs</p>
-        </div>
+      <div class="section-header">
+        <div class="page-title" style="margin:0"><h1>📚 Manage Courses</h1><p>Add, edit or remove admission programs</p></div>
         <button class="btn btn-primary" onclick="openAddModal()">+ Add Course</button>
       </div>
-
       <div class="table-wrap">
         <div class="table-header"><h2>All Programs</h2></div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Course Name</th>
-              <th>Min. Marks (%)</th>
-              <th>Total Seats</th>
-              <th>Filled</th>
-              <th>Available</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="programs-table-body"></tbody>
-        </table>
+        <table><thead><tr><th>#</th><th>Course Name</th><th>Min. Marks (%)</th><th>Total Seats</th><th>Filled</th><th>Available</th><th>Actions</th></tr></thead>
+        <tbody id="programs-table-body"></tbody></table>
       </div>
     </section>
 
-    <!-- ── SEAT GRID ─────────────────────────────────────────────────────── -->
-    <section class="admin-content" id="section-seats">
-      <div class="page-title">
-        <h1>💺 Seat Allocation Grid</h1>
-        <p>Visual view of booked (red) and available (green) seats per program</p>
+
+    <!-- ── STUDENTS MANAGEMENT ── -->
+    <section class="admin-content" id="section-students">
+      <div class="section-header">
+        <div class="page-title" style="margin:0"><h1>👨‍🎓 Students Management</h1><p>View, edit and delete registered students</p></div>
+        <input type="text" class="search-bar" id="student-search" placeholder="🔍 Search by name, email, roll no…" oninput="filterStudents()" />
       </div>
-
-      <div class="seat-grid-wrap">
-        <div class="program-select-bar">
-          <label>Select Program:</label>
-          <select id="seat-program-select" onchange="loadSeatGrid()">
-            <option value="">-- Choose --</option>
-          </select>
-          <button class="btn btn-outline btn-sm" onclick="loadSeatGrid()">🔄 Refresh</button>
-        </div>
-
-        <div class="seat-legend">
-          <div class="seat-legend-item">
-            <div class="seat-legend-dot" style="background:#dcfce7;border:2px solid #86efac;"></div>
-            <span>Available</span>
-          </div>
-          <div class="seat-legend-item">
-            <div class="seat-legend-dot" style="background:#fee2e2;border:2px solid #fca5a5;"></div>
-            <span>Booked</span>
-          </div>
-        </div>
-
-        <div id="seat-stats" style="margin-bottom:1rem;font-size:.9rem;color:var(--muted);"></div>
-        <div class="seat-grid" id="seat-grid-container">
-          <div style="color:var(--muted);font-size:.9rem;">Select a program to view the seat grid.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── BOOKINGS ──────────────────────────────────────────────────────── -->
-    <section class="admin-content" id="section-bookings">
-      <div class="page-title">
-        <h1>📋 All Bookings</h1>
-        <p>Complete list of student seat bookings</p>
-      </div>
-
       <div class="table-wrap">
-        <div class="table-header">
-          <h2>Booking Records</h2>
-          <button class="btn btn-outline btn-sm" onclick="loadBookings()">🔄 Refresh</button>
-        </div>
+        <div class="table-header"><h2>All Students</h2><button class="btn btn-outline btn-sm" onclick="loadStudents()">🔄 Refresh</button></div>
         <div style="overflow-x:auto;">
           <table>
-            <thead>
-              <tr>
-                <th>Booking ID</th>
-                <th>Student</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Roll No</th>
-                <th>12th Marks</th>
-                <th>Program</th>
-                <th>Slot</th>
-                <th>Status</th>
-              </tr>
-            </thead>
+            <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Roll No</th><th>12th Marks</th><th>Program Booked</th><th>Booking ID</th><th>Actions</th></tr></thead>
+            <tbody id="students-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ── ALL BOOKINGS ── -->
+    <section class="admin-content" id="section-bookings">
+      <div class="section-header">
+        <div class="page-title" style="margin:0"><h1>📋 All Bookings</h1><p>Manage all seat bookings</p></div>
+        <input type="text" class="search-bar" id="booking-search" placeholder="🔍 Search by name, booking ID…" oninput="filterBookings()" />
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><h2>Booking Records</h2><button class="btn btn-outline btn-sm" onclick="loadBookings()">🔄 Refresh</button></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>Booking ID</th><th>Student</th><th>Phone</th><th>Roll No</th><th>12th Marks</th><th>Program</th><th>Slot</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="bookings-table-body"></tbody>
           </table>
         </div>
       </div>
     </section>
 
+
+    <!-- ── SEAT GRID ── -->
+    <section class="admin-content" id="section-seats">
+      <div class="page-title"><h1>💺 Seat Allocation Grid</h1><p>🟢 Green = Available &nbsp;|&nbsp; 🔴 Red = Booked (hover to see student name)</p></div>
+      <div class="seat-grid-wrap">
+        <div class="program-select-bar">
+          <label>Select Program:</label>
+          <select id="seat-program-select" onchange="loadSeatGrid()"><option value="">-- Choose --</option></select>
+          <button class="btn btn-outline btn-sm" onclick="loadSeatGrid()">🔄 Refresh</button>
+        </div>
+        <div class="seat-legend">
+          <div class="seat-legend-item"><div class="seat-legend-dot" style="background:#dcfce7;border:2px solid #86efac;"></div><span>Available</span></div>
+          <div class="seat-legend-item"><div class="seat-legend-dot" style="background:#fee2e2;border:2px solid #fca5a5;"></div><span>Booked</span></div>
+        </div>
+        <div id="seat-stats" style="margin-bottom:1rem;font-size:.9rem;color:var(--muted);"></div>
+        <div class="seat-grid" id="seat-grid-container"><div style="color:var(--muted);">Select a program to view the seat grid.</div></div>
+      </div>
+    </section>
+
   </main>
 </div>
 
-<!-- ── ADD / EDIT MODAL ─────────────────────────────────────────────────────── -->
+
+<!-- ── ADD/EDIT COURSE MODAL ── -->
 <div class="modal-overlay" id="program-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal()">✕</button>
+    <button class="modal-close" onclick="closeModal('program-modal')">✕</button>
     <h2 id="modal-title">Add New Course</h2>
     <form onsubmit="saveProgram(event)">
-      <div class="form-group">
-        <label>Course Name *</label>
-        <input type="text" id="modal-name" class="form-control" placeholder="e.g. CSE" required />
-      </div>
-      <div class="form-group">
-        <label>College Name</label>
-        <input type="text" id="modal-college" class="form-control" placeholder="e.g. Sastra Deemed University" />
-      </div>
+      <div class="form-group"><label>Course Name *</label><input type="text" id="modal-name" class="form-control" placeholder="e.g. CSE" required /></div>
+      <div class="form-group"><label>College Name</label><input type="text" id="modal-college" class="form-control" placeholder="Sastra Deemed University" /></div>
       <div class="form-group">
         <label>Total Seats *</label>
         <input type="number" id="modal-seats" class="form-control" min="1" max="500" required />
-        <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">A seat grid will be auto-generated for this count.</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Seat grid auto-generated for this count.</div>
       </div>
       <div class="form-group">
         <label>Minimum Marks (%) *</label>
         <input type="number" id="modal-minscore" class="form-control" min="0" max="100" required />
-        <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Students below this % cannot book a seat in this program.</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Students below this % cannot book this program.</div>
       </div>
       <div class="alert" id="modal-alert"></div>
-      <div style="display:flex;gap:.7rem;margin-top:.5rem;">
+      <div style="display:flex;gap:.7rem;margin-top:.8rem;">
         <button type="submit" class="btn btn-primary" id="modal-save-btn">Save Course</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('program-modal')">Cancel</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ── DELETE CONFIRM MODAL ──────────────────────────────────────────────────── -->
+
+<!-- ── EDIT STUDENT MODAL ── -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('student-modal')">✕</button>
+    <h2>✏️ Edit Student</h2>
+    <input type="hidden" id="edit-student-id" />
+    <form onsubmit="saveStudent(event)">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="edit-student-name" class="form-control" required /></div>
+      <div class="form-group"><label>Email *</label><input type="email" id="edit-student-email" class="form-control" required /></div>
+      <div class="form-group"><label>Phone *</label><input type="tel" id="edit-student-phone" class="form-control" required /></div>
+      <div class="form-group"><label>Roll Number</label><input type="text" id="edit-student-roll" class="form-control" /></div>
+      <div class="form-group"><label>12th Marks (%)</label><input type="number" id="edit-student-marks" class="form-control" min="0" max="100" step="0.1" /></div>
+      <div class="alert" id="student-modal-alert"></div>
+      <div style="display:flex;gap:.7rem;margin-top:.8rem;">
+        <button type="submit" class="btn btn-primary" id="student-save-btn">Update Student</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('student-modal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ── DELETE CONFIRM MODAL ── -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal" style="max-width:380px;text-align:center;">
-    <h2>🗑️ Delete Course</h2>
-    <p style="color:var(--muted);margin:.8rem 0 1.5rem;">Are you sure you want to delete <strong id="delete-prog-name"></strong>? This will remove all seats for this program.</p>
+    <h2 id="delete-modal-title">🗑️ Confirm Delete</h2>
+    <p style="color:var(--muted);margin:.8rem 0 1.5rem;" id="delete-modal-msg">Are you sure?</p>
     <div style="display:flex;gap:.7rem;justify-content:center;">
       <button class="btn btn-danger" onclick="confirmDelete()">Yes, Delete</button>
-      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-outline" onclick="closeModal('delete-modal')">Cancel</button>
     </div>
   </div>
 </div>
 
-<script>
-  let editingId    = null;
-  let deletingId   = null;
-  let allPrograms  = [];
+<!-- ── BOOKING STATUS MODAL ── -->
+<div class="modal-overlay" id="booking-modal">
+  <div class="modal" style="max-width:360px;">
+    <button class="modal-close" onclick="closeModal('booking-modal')">✕</button>
+    <h2>✏️ Update Booking Status</h2>
+    <input type="hidden" id="edit-booking-id" />
+    <div class="form-group" style="margin-top:1rem;">
+      <label>Status</label>
+      <select id="edit-booking-status" class="form-control">
+        <option value="CONFIRMED">CONFIRMED</option>
+        <option value="CANCELLED">CANCELLED</option>
+        <option value="ATTENDED">ATTENDED</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:.7rem;margin-top:.8rem;">
+      <button class="btn btn-primary" onclick="saveBookingStatus()">Update</button>
+      <button class="btn btn-outline" onclick="closeModal('booking-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+
+<script>
+  let allPrograms  = [];
+  let allStudents  = [];
+  let allBookings  = [];
+  let editingId    = null;   // program editing
+  let deleteTarget = null;   // { type: 'program'|'student'|'booking', id }
+
+  // ── Init ──
   (async () => {
     try {
-      const r = await fetch('/api/auth/me');
-      if (!r.ok || (await r.json()).user?.role !== 'admin') {
-        window.location.href = '/login.html'; return;
-      }
+      const r    = await fetch('/api/auth/me');
+      const data = await r.json();
+      if (!r.ok || !data.user || data.user.role !== 'admin') { window.location.href = '/login.html'; return; }
     } catch { window.location.href = '/login.html'; return; }
     loadAll();
   })();
 
-  function loadAll() {
-    loadStats();
-    loadPrograms();
-    loadBookings();
-  }
+  function loadAll() { loadStats(); loadPrograms(); loadStudents(); loadBookings(); }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
+  // ── Navigation ──
   function showSection(name) {
     document.querySelectorAll('.admin-content').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById(`section-${name}`).classList.add('active');
-    document.getElementById(`nav-${name}`).classList.add('active');
+    document.getElementById('section-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
     if (name === 'seats') populateSeatSelect();
   }
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
+  // ── Modal helpers ──
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // ── Stats ──
   async function loadStats() {
     const r    = await fetch('/api/admin/stats');
     const data = await r.json();
@@ -290,76 +256,61 @@
     document.getElementById('stat-seats').textContent    = data.available_seats;
   }
 
-  // ── Programs ───────────────────────────────────────────────────────────────
+
+  // ── Programs ──
   async function loadPrograms() {
     const r = await fetch('/api/admin/programs');
     const { programs } = await r.json();
     allPrograms = programs;
 
-    // Overview table
-    const ovBody = document.getElementById('overview-programs-body');
-    ovBody.innerHTML = programs.map(p => {
+    // overview table
+    document.getElementById('overview-programs-body').innerHTML = programs.map(p => {
       const avail = p.total_seats - p.filled_seats;
       const pct   = p.total_seats ? Math.round((p.filled_seats / p.total_seats) * 100) : 0;
       const bar   = `<div style="background:var(--bg);border-radius:4px;height:6px;width:100%;overflow:hidden;"><div style="background:${pct>80?'var(--danger)':'var(--primary)'};height:100%;width:${pct}%;border-radius:4px;"></div></div>`;
-      return `<tr>
-        <td><strong>${p.name}</strong></td>
-        <td>${p.min_score}%</td>
-        <td>${p.total_seats}</td>
+      return `<tr><td><strong>${p.name}</strong></td><td>${p.min_score}%</td><td>${p.total_seats}</td>
         <td><span class="badge badge-orange">${p.filled_seats}</span></td>
         <td><span class="badge badge-green">${avail}</span></td>
-        <td style="min-width:100px;">${bar}<span style="font-size:.75rem;color:var(--muted);">${pct}%</span></td>
-      </tr>`;
+        <td style="min-width:110px;">${bar}<span style="font-size:.75rem;color:var(--muted);">${pct}%</span></td></tr>`;
     }).join('');
 
-    // Manage table
-    const tbody = document.getElementById('programs-table-body');
-    tbody.innerHTML = programs.map((p, i) => {
+    // manage table
+    document.getElementById('programs-table-body').innerHTML = programs.map((p, i) => {
       const avail = p.total_seats - p.filled_seats;
       return `<tr>
         <td>${i+1}</td>
         <td><strong>${p.name}</strong><br/><span style="font-size:.78rem;color:var(--muted);">${p.college_name}</span></td>
         <td><span class="badge badge-blue">${p.min_score}%</span></td>
-        <td>${p.total_seats}</td>
-        <td>${p.filled_seats}</td>
-        <td><span class="badge ${avail > 0 ? 'badge-green' : 'badge-red'}">${avail}</span></td>
-        <td>
+        <td>${p.total_seats}</td><td>${p.filled_seats}</td>
+        <td><span class="badge ${avail>0?'badge-green':'badge-red'}">${avail}</span></td>
+        <td class="tbl-actions">
           <button class="btn btn-outline btn-sm" onclick="openEditModal(${p.id})">✏️ Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${p.id}, '${p.name.replace(/'/g,"\\'")}')">🗑️</button>
-        </td>
-      </tr>`;
+          <button class="btn btn-danger  btn-sm" onclick="askDelete('program',${p.id},'${p.name.replace(/'/g,"\\'")}')">🗑️ Delete</button>
+        </td></tr>`;
     }).join('');
   }
 
-  // ── Add / Edit Modal ───────────────────────────────────────────────────────
   function openAddModal() {
     editingId = null;
-    document.getElementById('modal-title').textContent = 'Add New Course';
-    document.getElementById('modal-save-btn').textContent = 'Save Course';
-    document.getElementById('modal-name').value = '';
-    document.getElementById('modal-college').value = '';
-    document.getElementById('modal-seats').value = '';
-    document.getElementById('modal-minscore').value = '';
+    document.getElementById('modal-title').textContent         = 'Add New Course';
+    document.getElementById('modal-save-btn').textContent      = 'Save Course';
+    ['modal-name','modal-college','modal-seats','modal-minscore'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('modal-alert').className = 'alert';
-    document.getElementById('program-modal').classList.add('open');
+    openModal('program-modal');
   }
 
   function openEditModal(id) {
     const p = allPrograms.find(x => x.id === id);
     if (!p) return;
     editingId = id;
-    document.getElementById('modal-title').textContent = 'Edit Course';
+    document.getElementById('modal-title').textContent    = 'Edit Course';
     document.getElementById('modal-save-btn').textContent = 'Update Course';
     document.getElementById('modal-name').value     = p.name;
     document.getElementById('modal-college').value  = p.college_name;
     document.getElementById('modal-seats').value    = p.total_seats;
     document.getElementById('modal-minscore').value = p.min_score;
     document.getElementById('modal-alert').className = 'alert';
-    document.getElementById('program-modal').classList.add('open');
-  }
-
-  function closeModal() {
-    document.getElementById('program-modal').classList.remove('open');
+    openModal('program-modal');
   }
 
   async function saveProgram(e) {
@@ -367,110 +318,228 @@
     const alertEl = document.getElementById('modal-alert');
     alertEl.className = 'alert';
     const body = {
-      name:        document.getElementById('modal-name').value.trim(),
-      college_name:document.getElementById('modal-college').value.trim(),
-      total_seats: document.getElementById('modal-seats').value,
-      min_score:   document.getElementById('modal-minscore').value,
+      name:         document.getElementById('modal-name').value.trim(),
+      college_name: document.getElementById('modal-college').value.trim(),
+      total_seats:  document.getElementById('modal-seats').value,
+      min_score:    document.getElementById('modal-minscore').value,
     };
     const btn = document.getElementById('modal-save-btn');
     btn.disabled = true;
-
     try {
       const url    = editingId ? `/api/admin/programs/${editingId}` : '/api/admin/programs';
       const method = editingId ? 'PUT' : 'POST';
-      const r    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const r    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
       const data = await r.json();
       if (!r.ok) { alertEl.textContent = data.error; alertEl.className = 'alert alert-error show'; return; }
-      closeModal();
-      loadPrograms();
-      loadStats();
-      populateSeatSelect();
-    } catch {
-      alertEl.textContent = 'Network error.';
-      alertEl.className = 'alert alert-error show';
-    } finally { btn.disabled = false; }
+      closeModal('program-modal');
+      loadPrograms(); loadStats(); populateSeatSelect();
+    } catch { alertEl.textContent = 'Network error.'; alertEl.className = 'alert alert-error show'; }
+    finally { btn.disabled = false; }
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
-  function openDeleteModal(id, name) {
-    deletingId = id;
-    document.getElementById('delete-prog-name').textContent = name;
-    document.getElementById('delete-modal').classList.add('open');
-  }
-  function closeDeleteModal() {
-    document.getElementById('delete-modal').classList.remove('open');
-    deletingId = null;
-  }
-  async function confirmDelete() {
-    if (!deletingId) return;
-    await fetch(`/api/admin/programs/${deletingId}`, { method: 'DELETE' });
-    closeDeleteModal();
-    loadPrograms();
-    loadStats();
-    populateSeatSelect();
+
+  // ── Students ──
+  async function loadStudents() {
+    const r = await fetch('/api/admin/students');
+    const { students } = await r.json();
+    allStudents = students;
+    renderStudents(students);
   }
 
-  // ── Seat Grid ──────────────────────────────────────────────────────────────
-  function populateSeatSelect() {
-    const sel = document.getElementById('seat-program-select');
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">-- Choose --</option>' +
-      allPrograms.map(p => `<option value="${p.id}" ${p.id == prev ? 'selected':''}>${p.name}</option>`).join('');
-    if (prev) loadSeatGrid();
+  function renderStudents(students) {
+    const tbody = document.getElementById('students-table-body');
+    if (!students.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No students registered yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = students.map((s, i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><strong>${s.full_name}</strong></td>
+        <td style="font-size:.82rem;">${s.email}</td>
+        <td>${s.phone || '—'}</td>
+        <td>${s.roll_no || '—'}</td>
+        <td><strong>${s.marks_12 ? s.marks_12 + '%' : '—'}</strong></td>
+        <td>${s.program_name ? '<span class="badge badge-blue">'+s.program_name+'</span>' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td style="font-size:.82rem;">${s.booking_id ? '<span class="badge badge-green">'+s.booking_id+'</span>' : '—'}</td>
+        <td class="tbl-actions">
+          <button class="btn btn-outline btn-sm" onclick="openStudentEditModal(${s.id})">✏️ Edit</button>
+          <button class="btn btn-danger  btn-sm" onclick="askDelete('student',${s.id},'${s.full_name.replace(/'/g,"\\'")}')">🗑️</button>
+        </td>
+      </tr>`).join('');
   }
 
-  async function loadSeatGrid() {
-    const progId = document.getElementById('seat-program-select').value;
-    const container = document.getElementById('seat-grid-container');
-    const stats     = document.getElementById('seat-stats');
-    if (!progId) { container.innerHTML = '<div style="color:var(--muted);">Select a program to view seats.</div>'; stats.textContent = ''; return; }
-
-    container.innerHTML = '<div style="color:var(--muted);">Loading…</div>';
-    const r = await fetch(`/api/seats/${progId}`);
-    const { seats } = await r.json();
-
-    const booked    = seats.filter(s => s.status === 'booked').length;
-    const available = seats.filter(s => s.status === 'available').length;
-    stats.innerHTML = `<strong>${seats.length}</strong> total seats &nbsp;|&nbsp; <span style="color:var(--success);">●</span> ${available} available &nbsp;|&nbsp; <span style="color:var(--danger);">●</span> ${booked} booked`;
-
-    container.innerHTML = '';
-    seats.forEach(s => {
-      const div = document.createElement('div');
-      div.className = `seat ${s.status}`;
-      div.textContent = s.seat_number;
-      div.title = s.status === 'booked'
-        ? `Seat ${s.seat_number} — Booked by ${s.student_name || 'Student'}`
-        : `Seat ${s.seat_number} — Available`;
-      container.appendChild(div);
-    });
+  function filterStudents() {
+    const q = document.getElementById('student-search').value.toLowerCase();
+    renderStudents(allStudents.filter(s =>
+      s.full_name.toLowerCase().includes(q) ||
+      s.email.toLowerCase().includes(q) ||
+      (s.roll_no && s.roll_no.toLowerCase().includes(q)) ||
+      (s.program_name && s.program_name.toLowerCase().includes(q))
+    ));
   }
 
-  // ── Bookings ───────────────────────────────────────────────────────────────
+  function openStudentEditModal(id) {
+    const s = allStudents.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('edit-student-id').value    = s.id;
+    document.getElementById('edit-student-name').value  = s.full_name;
+    document.getElementById('edit-student-email').value = s.email;
+    document.getElementById('edit-student-phone').value = s.phone || '';
+    document.getElementById('edit-student-roll').value  = s.roll_no || '';
+    document.getElementById('edit-student-marks').value = s.marks_12 || '';
+    document.getElementById('student-modal-alert').className = 'alert';
+    openModal('student-modal');
+  }
+
+  async function saveStudent(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('student-modal-alert');
+    alertEl.className = 'alert';
+    const id   = document.getElementById('edit-student-id').value;
+    const body = {
+      full_name: document.getElementById('edit-student-name').value.trim(),
+      email:     document.getElementById('edit-student-email').value.trim(),
+      phone:     document.getElementById('edit-student-phone').value.trim(),
+      roll_no:   document.getElementById('edit-student-roll').value.trim(),
+      marks_12:  document.getElementById('edit-student-marks').value,
+    };
+    const btn = document.getElementById('student-save-btn');
+    btn.disabled = true;
+    try {
+      const r    = await fetch(`/api/admin/students/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) { alertEl.textContent = data.error; alertEl.className = 'alert alert-error show'; return; }
+      closeModal('student-modal');
+      loadStudents(); loadStats();
+    } catch { alertEl.textContent = 'Network error.'; alertEl.className = 'alert alert-error show'; }
+    finally { btn.disabled = false; }
+  }
+
+
+  // ── Bookings ──
   async function loadBookings() {
     const r = await fetch('/api/admin/bookings');
     const { bookings } = await r.json();
+    allBookings = bookings;
+    renderBookings(bookings);
+  }
+
+  function renderBookings(bookings) {
     const tbody = document.getElementById('bookings-table-body');
     if (!bookings.length) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No bookings yet.</td></tr>';
       return;
     }
-    tbody.innerHTML = bookings.map(b => `
-      <tr>
+    tbody.innerHTML = bookings.map(b => {
+      const statusClass = b.status === 'CONFIRMED' ? 'badge-green' : b.status === 'CANCELLED' ? 'badge-red' : 'badge-blue';
+      return `<tr>
         <td><span class="badge badge-blue">${b.booking_id}</span></td>
-        <td><strong>${b.full_name}</strong></td>
-        <td style="font-size:.82rem;">${b.email}</td>
+        <td><strong>${b.full_name}</strong><br/><span style="font-size:.78rem;color:var(--muted);">${b.email}</span></td>
         <td>${b.phone || '—'}</td>
         <td>${b.roll_no || '—'}</td>
-        <td><strong>${b.marks_12 ? b.marks_12 + '%' : '—'}</strong></td>
+        <td><strong>${b.marks_12 ? b.marks_12+'%' : '—'}</strong></td>
         <td>${b.program_name}</td>
-        <td style="font-size:.82rem;">${b.slot_date} ${b.slot_time}</td>
-        <td><span class="badge badge-green">${b.status}</span></td>
-      </tr>`).join('');
+        <td style="font-size:.82rem;">${b.slot_date}<br/>${b.slot_time}</td>
+        <td><span class="badge ${statusClass}">${b.status}</span></td>
+        <td class="tbl-actions">
+          <button class="btn btn-outline btn-sm" onclick="openBookingEditModal(${b.id},'${b.status}')">✏️</button>
+          <button class="btn btn-danger  btn-sm" onclick="askDelete('booking',${b.id},'Booking ${b.booking_id}')">🗑️</button>
+        </td></tr>`;
+    }).join('');
   }
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
+  function filterBookings() {
+    const q = document.getElementById('booking-search').value.toLowerCase();
+    renderBookings(allBookings.filter(b =>
+      b.full_name.toLowerCase().includes(q) ||
+      b.booking_id.toLowerCase().includes(q) ||
+      b.program_name.toLowerCase().includes(q) ||
+      (b.email && b.email.toLowerCase().includes(q))
+    ));
+  }
+
+  function openBookingEditModal(id, currentStatus) {
+    document.getElementById('edit-booking-id').value     = id;
+    document.getElementById('edit-booking-status').value = currentStatus;
+    openModal('booking-modal');
+  }
+
+  async function saveBookingStatus() {
+    const id     = document.getElementById('edit-booking-id').value;
+    const status = document.getElementById('edit-booking-status').value;
+    const r = await fetch(`/api/admin/bookings/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+    if (r.ok) { closeModal('booking-modal'); loadBookings(); loadStats(); }
+  }
+
+
+  // ── Universal Delete ──
+  function askDelete(type, id, label) {
+    deleteTarget = { type, id };
+    const titles = { program:'🗑️ Delete Course', student:'🗑️ Delete Student', booking:'🗑️ Delete Booking' };
+    const msgs   = {
+      program: `Delete course <strong>${label}</strong>? All its seats and bookings will also be removed.`,
+      student: `Delete student <strong>${label}</strong>? Their booking and seat will be freed.`,
+      booking: `Delete <strong>${label}</strong>? The seat will be freed and marked available.`,
+    };
+    document.getElementById('delete-modal-title').innerHTML = titles[type];
+    document.getElementById('delete-modal-msg').innerHTML   = msgs[type];
+    openModal('delete-modal');
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    const { type, id } = deleteTarget;
+    const urls = { program: `/api/admin/programs/${id}`, student: `/api/admin/students/${id}`, booking: `/api/admin/bookings/${id}` };
+    const r = await fetch(urls[type], { method:'DELETE' });
+    closeModal('delete-modal');
+    deleteTarget = null;
+    if (r.ok) {
+      if (type === 'program') { loadPrograms(); loadStats(); populateSeatSelect(); }
+      if (type === 'student') { loadStudents(); loadStats(); }
+      if (type === 'booking') { loadBookings(); loadStudents(); loadStats(); populateSeatSelect(); }
+    } else {
+      const data = await r.json();
+      alert('Delete failed: ' + (data.error || 'Unknown error'));
+    }
+  }
+
+
+  // ── Seat Grid ──
+  function populateSeatSelect() {
+    const sel  = document.getElementById('seat-program-select');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">-- Choose --</option>' +
+      allPrograms.map(p => `<option value="${p.id}" ${p.id==prev?'selected':''}>${p.name}</option>`).join('');
+    if (prev) loadSeatGrid();
+  }
+
+  async function loadSeatGrid() {
+    const progId    = document.getElementById('seat-program-select').value;
+    const container = document.getElementById('seat-grid-container');
+    const stats     = document.getElementById('seat-stats');
+    if (!progId) { container.innerHTML = '<div style="color:var(--muted);">Select a program to view seats.</div>'; stats.textContent=''; return; }
+
+    container.innerHTML = '<div style="color:var(--muted);">Loading…</div>';
+    const r = await fetch('/api/seats/' + progId);
+    const { seats } = await r.json();
+
+    const booked    = seats.filter(s => s.status==='booked').length;
+    const available = seats.filter(s => s.status==='available').length;
+    stats.innerHTML = `<strong>${seats.length}</strong> total &nbsp;|&nbsp; <span style="color:var(--success);">●</span> ${available} available &nbsp;|&nbsp; <span style="color:var(--danger);">●</span> ${booked} booked`;
+
+    container.innerHTML = '';
+    seats.forEach(s => {
+      const div = document.createElement('div');
+      div.className   = 'seat ' + s.status;
+      div.textContent = s.seat_number;
+      div.title = s.status==='booked' ? `Seat ${s.seat_number} — ${s.student_name||'Student'}` : `Seat ${s.seat_number} — Available`;
+      container.appendChild(div);
+    });
+  }
+
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', { method:'POST' });
     window.location.href = '/login.html';
   }
 </script>

@@ -130,7 +130,6 @@
     list.innerHTML = programs.map(p => `
       <div class="program-chip" onclick="sendQuick('I want ${p.name}')">
         <span>${p.name}</span>
-        <span class="seats">${p.available_seats} seats</span>
       </div>`).join('');
   }
 

@@ -3,17 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register — College Admission Portal</title>
+  <title>Register — Sastra Deemed University</title>
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .auth-wrapper {
+      background: linear-gradient(135deg, #1e3a5f 0%, #4f46e5 60%, #06b6d4 100%);
+    }
+    .sastra-header {
+      text-align: center;
+      margin-bottom: 1.6rem;
+    }
+    .sastra-header .uni-icon { font-size: 3rem; line-height: 1; }
+    .sastra-header .welcome-text {
+      font-size: .82rem; font-weight: 600;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: #06b6d4; margin-top: .5rem;
+    }
+    .sastra-header h1 { font-size: 1.35rem; font-weight: 800; color: #1e293b; margin-top: .25rem; }
+    .sastra-header .subtitle { font-size: .83rem; color: #64748b; margin-top: .25rem; }
+    .sastra-divider { border:none; border-top:1px solid #e2e8f0; margin:1.1rem 0; }
+  </style>
 </head>
 <body>
 <div class="auth-wrapper">
   <div class="auth-box">
-    <div class="auth-logo">
-      <div class="icon">🎓</div>
-      <h1>Create Account</h1>
-      <p>Register to apply for admission</p>
+
+    <!-- Sastra Branding -->
+    <div class="sastra-header">
+      <div class="uni-icon">🏛️</div>
+      <div class="welcome-text">Welcome to</div>
+      <h1>Sastra Deemed University</h1>
+      <div class="subtitle">Create your applicant account</div>
     </div>
+
+    <hr class="sastra-divider" />
 
     <form id="register-form" onsubmit="handleRegister(event)">
       <div class="form-group">
@@ -30,7 +53,7 @@
       </div>
       <div class="form-group">
         <label for="confirm">Confirm Password</label>
-        <input type="password" id="confirm" class="form-control" placeholder="Re-enter password" required />
+        <input type="password" id="confirm" class="form-control" placeholder="Re-enter your password" required />
       </div>
 
       <div class="alert" id="reg-alert"></div>
@@ -40,17 +63,17 @@
       </button>
     </form>
 
-    <div class="auth-switch">
-      Already have an account? <a href="/login.html">Sign in</a>
+    <div class="auth-switch" style="margin-top:1rem;">
+      Already registered? <a href="/login.html">Sign in here</a>
     </div>
   </div>
 </div>
 
 <script>
-  function showAlert(msg, type = 'error') {
+  function showAlert(msg, type='error') {
     const el = document.getElementById('reg-alert');
     el.textContent = msg;
-    el.className = `alert alert-${type} show`;
+    el.className = 'alert alert-' + type + ' show';
   }
 
   async function handleRegister(e) {
@@ -65,8 +88,7 @@
     if (password !== confirm) { showAlert('Passwords do not match.'); return; }
     if (password.length < 6)  { showAlert('Password must be at least 6 characters.'); return; }
 
-    btn.disabled = true;
-    label.textContent = 'Creating account…';
+    btn.disabled = true; label.textContent = 'Creating account…';
 
     try {
       const res  = await fetch('/api/auth/register', {
@@ -81,8 +103,7 @@
     } catch {
       showAlert('Network error. Please try again.');
     } finally {
-      btn.disabled = false;
-      label.textContent = 'Create Account';
+      btn.disabled = false; label.textContent = 'Create Account';
     }
   }
 </script>
