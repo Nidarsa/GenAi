@@ -269,13 +269,48 @@ app.get("/api/student/profile", requireStudent, async (req, res) => {
   res.json({ user: req.session.user, student: student||null, booking: booking||null });
 });
 
-// ── Slots ─────────────────────────────────────────────────────────────────────
+// ── Slots (public) ────────────────────────────────────────────────────────────
 app.get("/api/slots", async (_, res) => {
   const slots = await all(
     `SELECT id,slot_date,slot_time,capacity,booked_count,(capacity-booked_count) AS available
      FROM slots WHERE is_active=1 ORDER BY slot_date,slot_time`
   );
   res.json({ slots });
+});
+
+// ── Admin: Slots CRUD ─────────────────────────────────────────────────────────
+app.get("/api/admin/slots", requireAdmin, async (_, res) => {
+  const slots = await all(`SELECT * FROM slots ORDER BY slot_date, slot_time`);
+  res.json({ slots });
+});
+app.post("/api/admin/slots", requireAdmin, async (req, res) => {
+  const { slot_date, slot_time, capacity } = req.body;
+  if (!slot_date || !slot_time || !capacity)
+    return res.status(400).json({ error: "slot_date, slot_time, capacity required." });
+  const result = await run(
+    `INSERT INTO slots (slot_date,slot_time,capacity,booked_count,is_active) VALUES (?,?,?,0,1)`,
+    [slot_date, slot_time, Number(capacity)]
+  );
+  res.json({ success: true, id: result.lastID });
+});
+app.put("/api/admin/slots/:id", requireAdmin, async (req, res) => {
+  const s = await get(`SELECT * FROM slots WHERE id=?`, [req.params.id]);
+  if (!s) return res.status(404).json({ error: "Not found." });
+  const { slot_date, slot_time, capacity, is_active } = req.body;
+  await run(
+    `UPDATE slots SET slot_date=?,slot_time=?,capacity=?,is_active=? WHERE id=?`,
+    [slot_date||s.slot_date, slot_time||s.slot_time,
+     capacity!==undefined?Number(capacity):s.capacity,
+     is_active!==undefined?Number(is_active):s.is_active, req.params.id]
+  );
+  res.json({ success: true });
+});
+app.delete("/api/admin/slots/:id", requireAdmin, async (req, res) => {
+  const booked = await get(`SELECT COUNT(*) as cnt FROM bookings WHERE slot_id=?`,[req.params.id]);
+  if (booked && booked.cnt > 0)
+    return res.status(400).json({ error: `Cannot delete — ${booked.cnt} booking(s) use this slot.` });
+  await run(`DELETE FROM slots WHERE id=?`, [req.params.id]);
+  res.json({ success: true });
 });
 
 
