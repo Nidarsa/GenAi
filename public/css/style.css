@@ -215,16 +215,29 @@ html, body { overflow: hidden; }
 
 /* ── Admin Layout ─────────────────────────────────────────────────────────── */
 .admin-layout {
-  display: grid; grid-template-columns: 240px 1fr;
-  height: calc(100vh - var(--navbar-h)); overflow: hidden;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: calc(100vh - var(--navbar-h));
+  overflow: hidden;
+  position: relative;
 }
 .admin-sidebar {
-  background: #1e3a8a; color: #bfdbfe; padding: 1.2rem 0;
-  display: flex; flex-direction: column; overflow-y: auto; height: 100%;
+  background: #1e3a8a;
+  color: #bfdbfe;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+  /* Desktop: normal grid item — no absolute positioning */
 }
 .admin-sidebar .logo {
-  padding: 0 1.2rem 1.2rem; font-size: .95rem; font-weight: 700;
-  color: #fff; border-bottom: 1px solid #1d4ed8; flex-shrink: 0;
+  padding: 1rem 1.2rem;
+  font-size: .95rem;
+  font-weight: 700;
+  color: #fff;
+  border-bottom: 1px solid #1d4ed8;
+  flex-shrink: 0;
 }
 .admin-nav { padding: .6rem 0; flex: 1; overflow-y: auto; }
 .admin-nav-item {
@@ -239,11 +252,10 @@ html, body { overflow: hidden; }
 .admin-content { padding: 1.5rem; display: none; }
 .admin-content.active { display: block; }
 
-/* Admin hamburger toggle (mobile) */
-.admin-menu-toggle {
-  display: none; background: none; border: none; color: #fff;
-  font-size: 1.5rem; cursor: pointer; padding: .2rem;
-}
+/* Hamburger — hidden on desktop */
+.admin-menu-toggle { display: none; }
+/* Overlay — hidden on desktop */
+.sidebar-overlay   { display: none; }
 
 /* Stats */
 .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.5rem; }
@@ -385,10 +397,16 @@ tbody td { padding: .7rem .9rem; font-size: .87rem; }
   .chat-input-area { padding: .6rem .9rem; }
   .quick-actions { padding: .4rem .9rem; }
 
-  /* ── Admin page: sidebar becomes drawer / collapsible ── */
+  /* ── Admin page: sidebar becomes slide-in drawer ── */
+  .admin-menu-toggle {
+    display: block;
+    background: none; border: none; color: #fff;
+    font-size: 1.4rem; cursor: pointer; padding: .2rem .4rem;
+    margin-right: .3rem;
+  }
+
   .admin-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
     height: calc(100vh - var(--navbar-h));
     position: relative;
     overflow: hidden;
@@ -401,14 +419,15 @@ tbody td { padding: .7rem .9rem; font-size: .87rem; }
     width: 240px;
     z-index: 150;
     transition: left .25s ease;
-    box-shadow: 4px 0 20px rgba(0,0,0,.2);
+    box-shadow: 4px 0 20px rgba(0,0,0,.25);
   }
   .admin-sidebar.open { left: 0; }
 
-  /* Overlay behind open sidebar */
   .sidebar-overlay {
-    display: none; position: absolute; inset: 0;
-    background: rgba(0,0,0,.4); z-index: 140;
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 140;
+    display: none;
   }
   .sidebar-overlay.show { display: block; }
 
