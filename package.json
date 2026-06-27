@@ -1,6 +1,6 @@
 {
   "name": "college-admission-portal",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "College Admission Portal with Student Chatbot & Admin Dashboard",
   "main": "server.js",
   "scripts": {
@@ -15,6 +15,7 @@
     "multer": "^1.4.5-lts.1",
     "openai": "^4.67.3",
     "pdf-parse": "^1.1.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "tesseract.js": "^5.1.1"
   }
 }

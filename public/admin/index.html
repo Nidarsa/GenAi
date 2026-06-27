@@ -34,6 +34,7 @@
       <div class="admin-nav-item"        onclick="showSection('students')"  id="nav-students"> <span class="icon">👨‍🎓</span> Students</div>
       <div class="admin-nav-item"        onclick="showSection('bookings')"  id="nav-bookings"> <span class="icon">📋</span> All Bookings</div>
       <div class="admin-nav-item"        onclick="showSection('seats')"     id="nav-seats">    <span class="icon">💺</span> Seat Grid</div>
+      <div class="admin-nav-item"        onclick="showSection('faq')"       id="nav-faq">      <span class="icon">❓</span> FAQ / Chatbot</div>
     </nav>
     <div style="padding:1rem 1.4rem;font-size:.78rem;color:#475569;border-top:1px solid #334155;">⚙️ Admin v2.0</div>
   </aside>
@@ -108,6 +109,26 @@
     </section>
 
 
+  <!-- ── FAQ / CHATBOT ── -->
+    <section class="admin-content" id="section-faq">
+      <div class="section-header">
+        <div class="page-title" style="margin:0">
+          <h1>❓ FAQ & Chatbot Knowledge</h1>
+          <p>Add questions & answers here — the chatbot will use these to answer students automatically</p>
+        </div>
+        <button class="btn btn-primary" onclick="openFaqModal()">+ Add FAQ</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header"><h2>All FAQ Entries</h2><button class="btn btn-outline btn-sm" onclick="loadFaq()">🔄 Refresh</button></div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr><th>#</th><th>Category</th><th>Question</th><th>Answer</th><th>Actions</th></tr></thead>
+            <tbody id="faq-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- ── SEAT GRID ── -->
     <section class="admin-content" id="section-seats">
       <div class="page-title"><h1>💺 Seat Allocation Grid</h1><p>🟢 Green = Available &nbsp;|&nbsp; 🔴 Red = Booked (hover to see student name)</p></div>
@@ -180,6 +201,37 @@
 </div>
 
 
+<!-- ── FAQ MODAL ── -->
+<div class="modal-overlay" id="faq-modal">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeModal('faq-modal')">✕</button>
+    <h2 id="faq-modal-title">Add FAQ</h2>
+    <form onsubmit="saveFaq(event)">
+      <input type="hidden" id="faq-edit-id" />
+      <div class="form-group">
+        <label>Category</label>
+        <select id="faq-category" class="form-control">
+          <option>General</option><option>Fees</option><option>Hostel</option>
+          <option>Placement</option><option>Admission</option><option>Documents</option><option>Contact</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Question *</label>
+        <input type="text" id="faq-question" class="form-control" placeholder="e.g. What is the fee for CSE?" required />
+      </div>
+      <div class="form-group">
+        <label>Answer *</label>
+        <textarea id="faq-answer" class="form-control" rows="4" placeholder="Type the full answer here…" required style="resize:vertical;"></textarea>
+      </div>
+      <div class="alert" id="faq-alert"></div>
+      <div style="display:flex;gap:.7rem;margin-top:.8rem;">
+        <button type="submit" class="btn btn-primary" id="faq-save-btn">Save FAQ</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('faq-modal')">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ── DELETE CONFIRM MODAL ── -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal" style="max-width:380px;text-align:center;">
@@ -218,10 +270,10 @@
   let allPrograms  = [];
   let allStudents  = [];
   let allBookings  = [];
-  let editingId    = null;   // program editing
-  let deleteTarget = null;   // { type: 'program'|'student'|'booking', id }
+  let allFaq       = [];
+  let editingId    = null;
+  let deleteTarget = null;
 
-  // ── Init ──
   (async () => {
     try {
       const r    = await fetch('/api/auth/me');
@@ -231,7 +283,7 @@
     loadAll();
   })();
 
-  function loadAll() { loadStats(); loadPrograms(); loadStudents(); loadBookings(); }
+  function loadAll() { loadStats(); loadPrograms(); loadStudents(); loadBookings(); loadFaq(); }
 
   // ── Navigation ──
   function showSection(name) {
@@ -476,11 +528,12 @@
   // ── Universal Delete ──
   function askDelete(type, id, label) {
     deleteTarget = { type, id };
-    const titles = { program:'🗑️ Delete Course', student:'🗑️ Delete Student', booking:'🗑️ Delete Booking' };
+    const titles = { program:'🗑️ Delete Course', student:'🗑️ Delete Student', booking:'🗑️ Delete Booking', faq:'🗑️ Delete FAQ' };
     const msgs   = {
       program: `Delete course <strong>${label}</strong>? All its seats and bookings will also be removed.`,
       student: `Delete student <strong>${label}</strong>? Their booking and seat will be freed.`,
       booking: `Delete <strong>${label}</strong>? The seat will be freed and marked available.`,
+      faq:     `Delete <strong>${label}</strong>? The chatbot will no longer answer this question.`,
     };
     document.getElementById('delete-modal-title').innerHTML = titles[type];
     document.getElementById('delete-modal-msg').innerHTML   = msgs[type];
@@ -490,14 +543,15 @@
   async function confirmDelete() {
     if (!deleteTarget) return;
     const { type, id } = deleteTarget;
-    const urls = { program: `/api/admin/programs/${id}`, student: `/api/admin/students/${id}`, booking: `/api/admin/bookings/${id}` };
+    const urls = { program:`/api/admin/programs/${id}`, student:`/api/admin/students/${id}`, booking:`/api/admin/bookings/${id}`, faq:`/api/admin/faq/${id}` };
     const r = await fetch(urls[type], { method:'DELETE' });
     closeModal('delete-modal');
     deleteTarget = null;
     if (r.ok) {
-      if (type === 'program') { loadPrograms(); loadStats(); populateSeatSelect(); }
-      if (type === 'student') { loadStudents(); loadStats(); }
-      if (type === 'booking') { loadBookings(); loadStudents(); loadStats(); populateSeatSelect(); }
+      if (type==='program') { loadPrograms(); loadStats(); populateSeatSelect(); }
+      if (type==='student') { loadStudents(); loadStats(); }
+      if (type==='booking') { loadBookings(); loadStudents(); loadStats(); populateSeatSelect(); }
+      if (type==='faq')     { loadFaq(); }
     } else {
       const data = await r.json();
       alert('Delete failed: ' + (data.error || 'Unknown error'));
@@ -536,6 +590,78 @@
       div.title = s.status==='booked' ? `Seat ${s.seat_number} — ${s.student_name||'Student'}` : `Seat ${s.seat_number} — Available`;
       container.appendChild(div);
     });
+  }
+
+  // ── FAQ ──────────────────────────────────────────────────────────────────────
+  async function loadFaq() {
+    const r = await fetch('/api/admin/faq');
+    const { faq } = await r.json();
+    allFaq = faq;
+    const tbody = document.getElementById('faq-table-body');
+    if (!faq.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem;">No FAQ entries yet. Add one to power the chatbot!</td></tr>';
+      return;
+    }
+    const cats = {'General':'badge-blue','Fees':'badge-orange','Hostel':'badge-green','Placement':'badge-blue','Admission':'badge-orange','Documents':'badge-red','Contact':'badge-green'};
+    tbody.innerHTML = faq.map((f,i) => `
+      <tr>
+        <td>${i+1}</td>
+        <td><span class="badge ${cats[f.category]||'badge-blue'}">${f.category}</span></td>
+        <td style="max-width:220px;font-weight:600;">${f.question}</td>
+        <td style="max-width:300px;font-size:.85rem;color:var(--muted);">${f.answer.substring(0,100)}${f.answer.length>100?'…':''}</td>
+        <td class="tbl-actions">
+          <button class="btn btn-outline btn-sm" onclick="openFaqEditModal(${f.id})">✏️ Edit</button>
+          <button class="btn btn-danger  btn-sm" onclick="askDelete('faq',${f.id},'FAQ #${f.id}')">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function openFaqModal() {
+    document.getElementById('faq-edit-id').value   = '';
+    document.getElementById('faq-question').value  = '';
+    document.getElementById('faq-answer').value    = '';
+    document.getElementById('faq-category').value  = 'General';
+    document.getElementById('faq-modal-title').textContent = 'Add FAQ';
+    document.getElementById('faq-save-btn').textContent    = 'Save FAQ';
+    document.getElementById('faq-alert').className = 'alert';
+    openModal('faq-modal');
+  }
+
+  function openFaqEditModal(id) {
+    const f = allFaq.find(x => x.id===id);
+    if (!f) return;
+    document.getElementById('faq-edit-id').value   = f.id;
+    document.getElementById('faq-question').value  = f.question;
+    document.getElementById('faq-answer').value    = f.answer;
+    document.getElementById('faq-category').value  = f.category;
+    document.getElementById('faq-modal-title').textContent = 'Edit FAQ';
+    document.getElementById('faq-save-btn').textContent    = 'Update FAQ';
+    document.getElementById('faq-alert').className = 'alert';
+    openModal('faq-modal');
+  }
+
+  async function saveFaq(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('faq-alert');
+    alertEl.className = 'alert';
+    const id   = document.getElementById('faq-edit-id').value;
+    const body = {
+      question: document.getElementById('faq-question').value.trim(),
+      answer:   document.getElementById('faq-answer').value.trim(),
+      category: document.getElementById('faq-category').value,
+    };
+    const btn = document.getElementById('faq-save-btn');
+    btn.disabled = true;
+    try {
+      const url    = id ? `/api/admin/faq/${id}` : '/api/admin/faq';
+      const method = id ? 'PUT' : 'POST';
+      const r    = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      const data = await r.json();
+      if (!r.ok) { alertEl.textContent=data.error; alertEl.className='alert alert-error show'; return; }
+      closeModal('faq-modal');
+      loadFaq();
+    } catch { alertEl.textContent='Network error.'; alertEl.className='alert alert-error show'; }
+    finally { btn.disabled=false; }
   }
 
   async function logout() {

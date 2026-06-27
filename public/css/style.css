@@ -115,8 +115,8 @@ html, body { height: 100%; overflow: hidden; }
 .student-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
-  height: calc(100vh - 62px); /* 62px = navbar */
-  overflow: hidden;           /* prevent layout overflow */
+  height: calc(100vh - 62px);
+  overflow: hidden;
 }
 
 /* ── Sidebar ── */
@@ -281,14 +281,14 @@ html, body { height: 100%; overflow: hidden; }
 @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-7px)} }
 
 /* ── Admin Layout ─────────────────────────────────────────────────────────── */
-.admin-layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 62px); }
+.admin-layout { display: grid; grid-template-columns: 240px 1fr; height: calc(100vh - 62px); overflow: hidden; }
 
 .admin-sidebar {
   background: #1e293b; color: #cbd5e1; padding: 1.5rem 0;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; overflow-y: auto; height: 100%;
 }
-.admin-sidebar .logo { padding: 0 1.4rem 1.5rem; font-size: 1rem; font-weight: 700; color: #fff; border-bottom: 1px solid #334155; }
-.admin-nav { padding: .75rem 0; flex: 1; }
+.admin-sidebar .logo { padding: 0 1.4rem 1.5rem; font-size: 1rem; font-weight: 700; color: #fff; border-bottom: 1px solid #334155; flex-shrink: 0; }
+.admin-nav { padding: .75rem 0; flex: 1; overflow-y: auto; }
 .admin-nav-item {
   display: flex; align-items: center; gap: .7rem;
   padding: .7rem 1.4rem; cursor: pointer; font-size: .9rem; font-weight: 500;
@@ -298,7 +298,7 @@ html, body { height: 100%; overflow: hidden; }
 .admin-nav-item.active { background: #334155; color: #fff; border-left-color: var(--primary); }
 .admin-nav-item .icon { font-size: 1.1rem; }
 
-.admin-main { background: var(--bg); overflow-y: auto; }
+.admin-main { background: var(--bg); overflow-y: auto; height: 100%; }
 .admin-content { padding: 2rem; display: none; }
 .admin-content.active { display: block; }
 

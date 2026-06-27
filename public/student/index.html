@@ -80,6 +80,18 @@
 
     <div class="chat-messages" id="chat-messages"></div>
 
+    <!-- Marksheet upload (shown only during marksheet step) -->
+    <div id="marksheet-upload-bar" style="display:none;padding:.7rem 1.4rem;background:#fffbeb;border-top:2px solid #f59e0b;">
+      <div style="font-size:.85rem;font-weight:600;color:#92400e;margin-bottom:.5rem;">📄 Upload your 12th Marksheet (PDF, JPG, PNG — max 10MB)</div>
+      <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;">
+        <input type="file" id="marksheet-file" accept=".pdf,.jpg,.jpeg,.png"
+          style="font-size:.85rem;flex:1;min-width:0;" />
+        <button class="btn btn-primary btn-sm" onclick="submitMarksheet()" id="marksheet-btn">Verify & Continue</button>
+        <button class="btn btn-outline btn-sm" onclick="skipMarksheet()">Skip for now</button>
+      </div>
+      <div id="marksheet-status" style="margin-top:.5rem;font-size:.83rem;"></div>
+    </div>
+
     <div class="chat-input-area">
       <textarea id="chat-input" rows="1"
         placeholder="Type here and press Enter…"
@@ -92,10 +104,10 @@
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-//  STATE  — single source of truth, never modified from two places at once
+//  STATE
 // ─────────────────────────────────────────────────────────────────────────────
 const STATE = {
-  step: 'idle',   // idle | name | phone | email | roll | marks | slot | confirm
+  step: 'idle',   // idle | name | phone | email | roll | marks | marksheet | slot | confirm
   program: null,
   data: {},
 };
@@ -272,7 +284,26 @@ async function route(text) {
       }
       STATE.data.marks    = t;
       STATE.data.marksPct = pct;
-      STATE.step = 'slot';
+      STATE.step = 'marksheet';
+      // show upload bar
+      document.getElementById('marksheet-upload-bar').style.display = 'block';
+      document.getElementById('marksheet-status').textContent = '';
+      botSay(
+        `Your marks: **${pct}%** ✅\n\n` +
+        `📄 Now please **upload your 12th Marksheet** (PDF or image) so we can verify your marks.\n\n` +
+        `The upload bar has appeared below the chat. You can also type **skip** to skip verification.`
+      );
+      return;
+    }
+
+    // ── Step 5b: marksheet (text input — only 'skip' accepted here) ──────────
+    case 'marksheet':
+      if (lower === 'skip') {
+        skipMarksheet();
+      } else {
+        botSay('Please use the **upload bar below** to upload your marksheet, or type **skip** to continue without verification.');
+      }
+      return;
       if (!slotOptions.length) {
         botSay('Sorry, no counseling slots are available right now. Please check back later.');
         resetState(); return;
@@ -285,8 +316,7 @@ async function route(text) {
     }
 
     // ── Step 6: collecting slot ──────────────────────────────────────────────
-    case 'slot': {
-      const idx = parseInt(t, 10) - 1;
+    case 'slot': {      const idx = parseInt(t, 10) - 1;
       if (isNaN(idx) || idx < 0 || !slotOptions[idx]) {
         botSay(`Please enter a number between **1** and **${slotOptions.length}**.`); return;
       }
@@ -436,6 +466,79 @@ async function doBooking() {
     botSay('❌ Network error while booking. Please try again.');
     resetState();
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MARKSHEET UPLOAD
+// ─────────────────────────────────────────────────────────────────────────────
+function showSlotStep() {
+  document.getElementById('marksheet-upload-bar').style.display = 'none';
+  STATE.step = 'slot';
+  if (!slotOptions.length) {
+    botSay('Sorry, no counseling slots are available right now.');
+    resetState(); return;
+  }
+  const slotList = slotOptions.map((s, i) =>
+    `  **${i+1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`
+  ).join('\n');
+  botSay(`Now choose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
+}
+
+async function submitMarksheet() {
+  const fileInput = document.getElementById('marksheet-file');
+  const statusEl  = document.getElementById('marksheet-status');
+  const btn       = document.getElementById('marksheet-btn');
+
+  if (!fileInput.files || !fileInput.files[0]) {
+    statusEl.textContent = '⚠️ Please select a file first.';
+    statusEl.style.color = '#92400e';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+  statusEl.textContent = '🔍 Reading your document…';
+  statusEl.style.color = '#4f46e5';
+
+  const formData = new FormData();
+  formData.append('marksheet', fileInput.files[0]);
+  formData.append('declared_marks', STATE.data.marksPct);
+
+  try {
+    const r    = await fetch('/api/verify-marksheet', { method: 'POST', body: formData });
+    const data = await r.json();
+
+    if (!r.ok) {
+      statusEl.textContent = '❌ ' + (data.error || 'Upload failed.');
+      statusEl.style.color = '#dc2626';
+      btn.disabled = false; btn.textContent = 'Verify & Continue';
+      return;
+    }
+
+    STATE.data.docVerified = data.verified;
+    botSay(data.message);
+
+    if (data.verified) {
+      statusEl.textContent = '✅ Verified! Moving to slot selection…';
+      statusEl.style.color = '#166534';
+      setTimeout(() => showSlotStep(), 1000);
+    } else {
+      // marks mismatch — block booking
+      statusEl.textContent = '❌ Marks mismatch. Please re-upload the correct document.';
+      statusEl.style.color = '#dc2626';
+      btn.disabled = false; btn.textContent = 'Verify & Continue';
+    }
+  } catch {
+    statusEl.textContent = '❌ Network error. Please try again.';
+    statusEl.style.color = '#dc2626';
+    btn.disabled = false; btn.textContent = 'Verify & Continue';
+  }
+}
+
+function skipMarksheet() {
+  STATE.data.docVerified = false;
+  botSay('⚠️ Marksheet verification skipped. Your booking will be marked as **pending verification**. Admin will verify manually.');
+  showSlotStep();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
