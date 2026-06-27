@@ -12,16 +12,13 @@
     .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:.8rem; }
   </style>
 </head>
-<body>
-
-
-<!-- NAVBAR -->
+<body class="admin-page">
 <nav class="navbar">
   <div class="navbar-brand">
     <!-- hamburger only shows on mobile via CSS display:none on desktop -->
     <button class="admin-menu-toggle" onclick="toggleAdminSidebar()" title="Menu">☰</button>
     <span class="icon">🎓</span>
-    <span>Sastra Deemed University — Admin</span>
+    <span class="brand-text">Sastra Deemed University — Admin</span>
   </div>
   <div class="navbar-right">
     <div class="navbar-user">Logged in as <span id="admin-name-display">Administrator</span></div>
@@ -44,7 +41,7 @@
       <div class="admin-nav-item"        onclick="showSection('slots')"     id="nav-slots">    <span class="icon">📅</span> Manage Slots</div>
       <div class="admin-nav-item"        onclick="showSection('faq')"       id="nav-faq">      <span class="icon">❓</span> FAQ / Chatbot</div>
     </nav>
-    <div style="padding:1rem 1.4rem;font-size:.78rem;color:#475569;border-top:1px solid #334155;">⚙️ Admin v2.0</div>
+    <div class="admin-sidebar-footer">⚙️ Admin v2.0</div>
   </aside>
 
   <main class="admin-main">
