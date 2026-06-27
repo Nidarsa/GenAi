@@ -12,18 +12,18 @@
 </head>
 <body>
 
-<!-- NAVBAR -->
 <nav class="navbar">
   <div class="navbar-brand"><span class="icon">🎓</span> Sastra Deemed University</div>
   <div class="navbar-right">
     <div class="navbar-user">Welcome, <span id="nav-name">Student</span></div>
-    <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+    <button class="btn btn-sm" onclick="logout()"
+      style="background:#fff;color:#1d4ed8;border:none;font-weight:700;padding:.4rem 1rem;border-radius:8px;cursor:pointer;">
+      Logout
+    </button>
   </div>
 </nav>
 
 <div class="student-layout">
-
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div>
       <h3>My Profile</h3>
@@ -57,19 +57,17 @@
     </div>
   </aside>
 
-  <!-- CHAT AREA -->
   <div class="chat-area">
     <div class="chat-header">
       <div class="bot-avatar">🤖</div>
       <div>
         <h2>Admission Assistant</h2>
-        <p id="chat-status-text">Online — ask me anything</p>
+        <p>Online — ask me anything</p>
       </div>
-      <div class="chat-online" id="chat-online-dot"></div>
+      <div class="chat-online"></div>
     </div>
 
-    <!-- Quick program pills -->
-    <div class="quick-actions" id="quick-pills">
+    <div class="quick-actions">
       <button class="quick-btn" onclick="quickAction('I want CSE')">💻 CSE</button>
       <button class="quick-btn" onclick="quickAction('I want AI & Data Science')">🤖 AI & DS</button>
       <button class="quick-btn" onclick="quickAction('I want Mechanical')">⚙️ Mech</button>
@@ -80,14 +78,13 @@
 
     <div class="chat-messages" id="chat-messages"></div>
 
-    <!-- Marksheet upload (shown only during marksheet step) -->
-    <div id="marksheet-upload-bar" style="display:none;padding:.7rem 1.4rem;background:#fffbeb;border-top:2px solid #f59e0b;">
-      <div style="font-size:.85rem;font-weight:600;color:#92400e;margin-bottom:.5rem;">📄 Upload your 12th Marksheet (PDF, JPG, PNG — max 10MB)</div>
+    <!-- Marksheet upload bar — shown only during marksheet step -->
+    <div id="marksheet-upload-bar" style="display:none;padding:.7rem 1.4rem;background:#eff6ff;border-top:2px solid #3b82f6;flex-shrink:0;">
+      <div style="font-size:.85rem;font-weight:600;color:#1d4ed8;margin-bottom:.5rem;">📄 Upload your 12th Marksheet (PDF, JPG, PNG — max 10MB)</div>
       <div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;">
-        <input type="file" id="marksheet-file" accept=".pdf,.jpg,.jpeg,.png"
-          style="font-size:.85rem;flex:1;min-width:0;" />
-        <button class="btn btn-primary btn-sm" onclick="submitMarksheet()" id="marksheet-btn">Verify & Continue</button>
-        <button class="btn btn-outline btn-sm" onclick="skipMarksheet()">Skip for now</button>
+        <input type="file" id="marksheet-file" accept=".pdf,.jpg,.jpeg,.png" style="font-size:.85rem;flex:1;min-width:0;" />
+        <button class="btn btn-primary btn-sm" onclick="submitMarksheet()" id="marksheet-btn">Verify &amp; Continue</button>
+        <button class="btn btn-outline btn-sm" onclick="skipMarksheet()">Skip</button>
       </div>
       <div id="marksheet-status" style="margin-top:.5rem;font-size:.83rem;"></div>
     </div>
@@ -103,61 +100,58 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-//  STATE
-// ─────────────────────────────────────────────────────────────────────────────
-const STATE = {
-  step: 'idle',   // idle | name | phone | email | roll | marks | marksheet | slot | confirm
-  program: null,
-  data: {},
-};
-
-let processing = false;   // LOCK — prevents re-entrant calls
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const STATE = { step: 'idle', program: null, data: {} };
+let processing  = false;
 let slotOptions = [];
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────────────────
 (async () => {
   try {
     const r = await fetch('/api/auth/me');
     if (!r.ok) { location.href = '/login.html'; return; }
     const { user } = await r.json();
-    document.getElementById('nav-name').textContent    = user.full_name;
+    document.getElementById('nav-name').textContent     = user.full_name;
     document.getElementById('profile-name').textContent = user.full_name;
   } catch { location.href = '/login.html'; return; }
 
-  await Promise.all([loadPrograms(), loadSlots(), loadProfile()]);
+  loadPrograms();
+  loadSlots();
+  loadProfile();
 
   botSay(
     '👋 Welcome to **Sastra Deemed University** Admission Portal!\n\n' +
-    'I can help you book a seat. Just click a program button above or type:\n' +
-    '• **I want CSE** — to start booking\n' +
-    '• **show programs** — see all courses & cutoffs\n' +
-    '• **show slots** — see counseling dates\n' +
-    '• **cancel** — restart anytime'
+    '• Type **I want CSE** (or any branch) to start booking\n' +
+    '• Type **show programs** to see all courses & cutoffs\n' +
+    '• Type **show slots** to see counseling dates\n' +
+    '• Type **cancel** anytime to restart'
   );
 })();
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  DATA LOADERS
-// ─────────────────────────────────────────────────────────────────────────────
+// ── LOADERS ───────────────────────────────────────────────────────────────────
 async function loadPrograms() {
   try {
     const r = await fetch('/api/programs');
     const { programs } = await r.json();
+    const el = document.getElementById('programs-list');
+    if (!programs || !programs.length) {
+      el.innerHTML = '<div style="font-size:.82rem;color:var(--muted);">No programs yet.</div>';
+      return;
+    }
+    el.innerHTML = programs.map(p =>
+      `<button class="program-chip" onclick="quickAction('I want ${p.name}')">${p.name}</button>`
+    ).join('');
+  } catch {
     document.getElementById('programs-list').innerHTML =
-      programs.map(p =>
-        `<div class="program-chip" onclick="quickAction('I want ${p.name}')"><span>${p.name}</span></div>`
-      ).join('');
-  } catch {}
+      '<div style="font-size:.82rem;color:var(--danger);">Could not load.</div>';
+  }
 }
 
 async function loadSlots() {
   try {
     const r = await fetch('/api/slots');
-    const { slots } = await r.json();
-    slotOptions = slots.filter(s => s.available > 0);
+    const d = await r.json();
+    slotOptions = (d.slots || []).filter(s => Number(s.available) > 0);
   } catch { slotOptions = []; }
 }
 
@@ -170,11 +164,7 @@ async function loadProfile() {
   } catch {}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ENTRY POINTS — all user input goes through ONE gate
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Called by button clicks — sets the input value then triggers handleSend
+// ── ENTRY POINTS ──────────────────────────────────────────────────────────────
 function quickAction(text) {
   if (STATE.step !== 'idle') {
     botSay('⚠️ You\'re in the middle of a booking. Type **cancel** to start over.');
@@ -185,28 +175,23 @@ function quickAction(text) {
   handleSend();
 }
 
-// Called by Send button and Enter key
 function handleSend() {
   const inp  = document.getElementById('chat-input');
   const text = inp.value.trim();
-  if (!text || processing) return;    // ← LOCK check
+  if (!text || processing) return;
   inp.value = '';
   autoResize(inp);
-  processMessage(text);               // fire and forget — but lock prevents re-entry
+  processMessage(text);
 }
 
 function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  CORE PROCESSOR — single async function, guarded by lock
-// ─────────────────────────────────────────────────────────────────────────────
+// ── PROCESSOR ─────────────────────────────────────────────────────────────────
 async function processMessage(text) {
-  // ── LOCK ──
   processing = true;
   setInputDisabled(true);
-
   try {
     userSay(text);
     await route(text);
@@ -214,369 +199,275 @@ async function processMessage(text) {
     botSay('Something went wrong. Please try again.');
     console.error(err);
   } finally {
-    // ── UNLOCK ──
     processing = false;
     setInputDisabled(false);
     document.getElementById('chat-input').focus();
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ROUTER — decides what to do based on current STATE.step
-// ─────────────────────────────────────────────────────────────────────────────
+// ── ROUTER ────────────────────────────────────────────────────────────────────
 async function route(text) {
-  const t = text.trim();
+  const t     = text.trim();
   const lower = t.toLowerCase();
 
-  // "cancel" works from any step
   if (lower === 'cancel' || lower === 'reset') {
     resetState();
+    document.getElementById('marksheet-upload-bar').style.display = 'none';
     botSay('Booking cancelled. Type **I want CSE** (or any program) to start again.');
     return;
   }
 
-  switch (STATE.step) {
-
-    // ── Step 1: collecting name ──────────────────────────────────────────────
-    case 'name':
-      if (t.length < 2) { botSay('Please enter your full name (at least 2 characters).'); return; }
-      STATE.data.fullName = t;
-      STATE.step = 'phone';
-      botSay(`Nice to meet you, **${t}**! 😊\n\nWhat is your **phone number**?`);
-      return;
-
-    // ── Step 2: collecting phone ─────────────────────────────────────────────
-    case 'phone':
-      if (t.replace(/[\s\-+()]/g, '').length < 7) {
-        botSay('Please enter a valid phone number (e.g. **9876543210**).'); return;
-      }
-      STATE.data.phone = t;
-      STATE.step = 'email';
-      botSay('What is your **email address**?');
-      return;
-
-    // ── Step 3: collecting email ─────────────────────────────────────────────
-    case 'email':
-      if (!t.includes('@') || !t.includes('.')) {
-        botSay('That doesn\'t look like a valid email. Please re-enter (e.g. **you@gmail.com**).'); return;
-      }
-      STATE.data.email = t;
-      STATE.step = 'roll';
-      botSay('What is your **Roll Number**?\n(Type **skip** if you don\'t have one yet)');
-      return;
-
-    // ── Step 4: collecting roll number ──────────────────────────────────────
-    case 'roll':
-      STATE.data.rollNo = lower === 'skip' ? '' : t;
-      STATE.step = 'marks';
-      botSay(
-        'What are your **12th board marks**?\n\n' +
-        'Enter as percentage: **88** or **88%**\n' +
-        'Or as fraction: **440/500**'
-      );
-      return;
-
-    // ── Step 5: collecting marks ─────────────────────────────────────────────
-    case 'marks': {
-      const pct = parseMarks(t);
-      if (pct === null) {
-        botSay('I couldn\'t read that. Enter as **88** or **440/500**.'); return;
-      }
-      STATE.data.marks    = t;
-      STATE.data.marksPct = pct;
-      STATE.step = 'marksheet';
-      // show upload bar
-      document.getElementById('marksheet-upload-bar').style.display = 'block';
-      document.getElementById('marksheet-status').textContent = '';
-      botSay(
-        `Your marks: **${pct}%** ✅\n\n` +
-        `📄 Now please **upload your 12th Marksheet** (PDF or image) so we can verify your marks.\n\n` +
-        `The upload bar has appeared below the chat. You can also type **skip** to skip verification.`
-      );
-      return;
-    }
-
-    // ── Step 5b: marksheet (text input — only 'skip' accepted here) ──────────
-    case 'marksheet':
-      if (lower === 'skip') {
-        skipMarksheet();
-      } else {
-        botSay('Please use the **upload bar below** to upload your marksheet, or type **skip** to continue without verification.');
-      }
-      return;
-      if (!slotOptions.length) {
-        botSay('Sorry, no counseling slots are available right now. Please check back later.');
-        resetState(); return;
-      }
-      const slotList = slotOptions.map((s, i) =>
-        `  **${i + 1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`
-      ).join('\n');
-      botSay(`Your marks: **${pct}%** ✅\n\nChoose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
-      return;
-    }
-
-    // ── Step 6: collecting slot ──────────────────────────────────────────────
-    case 'slot': {      const idx = parseInt(t, 10) - 1;
-      if (isNaN(idx) || idx < 0 || !slotOptions[idx]) {
-        botSay(`Please enter a number between **1** and **${slotOptions.length}**.`); return;
-      }
-      STATE.data.slotId    = slotOptions[idx].id;
-      STATE.data.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
-      STATE.step = 'confirm';
-      botSay(
-        '✅ Please review your details:\n\n' +
-        `🎓 **Program:** ${STATE.program}\n` +
-        `👤 **Name:** ${STATE.data.fullName}\n` +
-        `📧 **Email:** ${STATE.data.email}\n` +
-        `📱 **Phone:** ${STATE.data.phone}\n` +
-        `🔢 **Roll No:** ${STATE.data.rollNo || '—'}\n` +
-        `📊 **12th Marks:** ${STATE.data.marksPct}%\n` +
-        `📅 **Slot:** ${STATE.data.slotLabel}\n\n` +
-        'Type **yes** or **confirm** to book — or **cancel** to start over.'
-      );
-      return;
-    }
-
-    // ── Step 7: confirmation ─────────────────────────────────────────────────
-    case 'confirm':
-      if (lower === 'yes' || lower === 'confirm' || lower === 'ok') {
-        await doBooking();
-      } else {
-        botSay('Type **yes** to confirm the booking, or **cancel** to start over.');
-      }
-      return;
-
-    // ── IDLE — detect program or handle general queries ───────────────────────
-    case 'idle':
-    default:
-      await handleIdle(text);
-      return;
+  if (STATE.step === 'name') {
+    if (t.length < 2) { botSay('Please enter your full name (at least 2 characters).'); return; }
+    STATE.data.fullName = t;
+    STATE.step = 'phone';
+    botSay(`Nice to meet you, **${t}**! 😊\n\nWhat is your **phone number**?`);
+    return;
   }
+
+  if (STATE.step === 'phone') {
+    if (t.replace(/[\s\-+()]/g, '').length < 7) {
+      botSay('Please enter a valid phone number (e.g. **9876543210**).'); return;
+    }
+    STATE.data.phone = t;
+    STATE.step = 'email';
+    botSay('What is your **email address**?');
+    return;
+  }
+
+  if (STATE.step === 'email') {
+    if (!t.includes('@') || !t.includes('.')) {
+      botSay('That doesn\'t look like a valid email (e.g. **you@gmail.com**).'); return;
+    }
+    STATE.data.email = t;
+    STATE.step = 'roll';
+    botSay('What is your **Roll Number**?\n(Type **skip** if you don\'t have one yet)');
+    return;
+  }
+
+  if (STATE.step === 'roll') {
+    STATE.data.rollNo = lower === 'skip' ? '' : t;
+    STATE.step = 'marks';
+    botSay('What are your **12th board marks**?\n\nEnter as: **88** or **88%** or **440/500**');
+    return;
+  }
+
+  if (STATE.step === 'marks') {
+    const pct = parseMarks(t);
+    if (pct === null) { botSay('I couldn\'t read that. Enter as **88** or **440/500**.'); return; }
+    STATE.data.marks    = t;
+    STATE.data.marksPct = pct;
+    STATE.step = 'marksheet';
+    document.getElementById('marksheet-upload-bar').style.display = 'block';
+    document.getElementById('marksheet-status').textContent = '';
+    document.getElementById('marksheet-file').value = '';
+    botSay(
+      `Your marks: **${pct}%** ✅\n\n` +
+      `📄 Please **upload your 12th Marksheet** (PDF or image) using the bar below for verification.\n\n` +
+      `Or type **skip** to skip verification.`
+    );
+    return;
+  }
+
+  if (STATE.step === 'marksheet') {
+    if (lower === 'skip') { skipMarksheet(); return; }
+    botSay('Please use the **upload bar below** to upload your marksheet, or type **skip**.');
+    return;
+  }
+
+  if (STATE.step === 'slot') {
+    const idx = parseInt(t, 10) - 1;
+    if (isNaN(idx) || idx < 0 || !slotOptions[idx]) {
+      botSay(`Please enter a number between **1** and **${slotOptions.length}**.`); return;
+    }
+    STATE.data.slotId    = slotOptions[idx].id;
+    STATE.data.slotLabel = `${slotOptions[idx].slot_date} at ${slotOptions[idx].slot_time}`;
+    STATE.step = 'confirm';
+    botSay(
+      '✅ Please review your details:\n\n' +
+      `🎓 **Program:** ${STATE.program}\n` +
+      `👤 **Name:** ${STATE.data.fullName}\n` +
+      `📧 **Email:** ${STATE.data.email}\n` +
+      `📱 **Phone:** ${STATE.data.phone}\n` +
+      `🔢 **Roll No:** ${STATE.data.rollNo || '—'}\n` +
+      `📊 **12th Marks:** ${STATE.data.marksPct}%\n` +
+      `📅 **Slot:** ${STATE.data.slotLabel}\n\n` +
+      'Type **yes** to confirm booking — or **cancel** to start over.'
+    );
+    return;
+  }
+
+  if (STATE.step === 'confirm') {
+    if (lower === 'yes' || lower === 'confirm' || lower === 'ok') {
+      await doBooking();
+    } else {
+      botSay('Type **yes** to confirm the booking, or **cancel** to start over.');
+    }
+    return;
+  }
+
+  // IDLE
+  await handleIdle(text);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  IDLE HANDLER — detects program names + general keyword replies
-// ─────────────────────────────────────────────────────────────────────────────
+// ── IDLE HANDLER ──────────────────────────────────────────────────────────────
 async function handleIdle(text) {
   const lower = text.toLowerCase();
 
-  // program detection
   const prog = detectProgram(lower);
   if (prog) {
     STATE.program = prog;
     STATE.step    = 'name';
     STATE.data    = {};
-    botSay(`Great choice — **${prog}**! 🎉\n\nI'll collect a few details to book your seat.\n\nFirst, what is your **full name**?`);
+    botSay(`Great choice — **${prog}**! 🎉\n\nFirst, what is your **full name**?`);
     return;
   }
 
-  // show programs
   if (lower.includes('program') || lower.includes('course') || lower.includes('branch') || lower.includes('show')) {
-    const r = await fetch('/api/programs');
-    const { programs } = await r.json();
-    const list = programs.map(p =>
-      `• **${p.name}** — Min: ${p.min_score}% | Seats: ${p.available_seats} left`
-    ).join('\n');
-    botSay(`Here are all available programs:\n\n${list}\n\nClick a program button or type **I want CSE** to begin!`);
+    try {
+      const r = await fetch('/api/programs');
+      const { programs } = await r.json();
+      const list = programs.map(p => `• **${p.name}** — Min: ${p.min_score}% | Seats: ${p.available_seats} left`).join('\n');
+      botSay(`Available programs:\n\n${list}\n\nClick a button above or type **I want CSE** to begin!`);
+    } catch { botSay('Could not load programs. Please try again.'); }
     return;
   }
 
-  // show slots
   if (lower.includes('slot') || lower.includes('schedule') || lower.includes('date') || lower.includes('counseling')) {
-    if (!slotOptions.length) {
-      botSay('No counseling slots are available right now. Please check back later.');
-      return;
-    }
-    const list = slotOptions.map(s =>
-      `• ${s.slot_date} at ${s.slot_time} — **${s.available}** seats left`
-    ).join('\n');
+    await loadSlots();
+    if (!slotOptions.length) { botSay('No counseling slots available right now. Please check back later.'); return; }
+    const list = slotOptions.map(s => `• ${s.slot_date} at ${s.slot_time} — **${s.available}** seats left`).join('\n');
     botSay(`Available counseling slots:\n\n${list}`);
     return;
   }
 
-  // booking help
   if (lower.includes('book') || lower.includes('apply') || lower.includes('seat') || lower.includes('admission')) {
-    botSay('To book a seat, tell me which program you want!\n\nFor example: **I want CSE** — or click a button above.');
+    botSay('To book a seat, tell me which program you want!\n\nFor example: **I want CSE** or click a button above.');
     return;
   }
 
-  // greeting
   if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('help')) {
-    botSay(
-      'Hello! 👋 I\'m your **Sastra Admission Assistant**.\n\n' +
-      '• Book a seat → say **I want CSE**\n' +
-      '• See courses → say **show programs**\n' +
-      '• See slots → say **show slots**'
-    );
+    botSay('Hello! 👋 I\'m your **Sastra Admission Assistant**.\n\n• Book → say **I want CSE**\n• Courses → say **show programs**\n• Slots → say **show slots**');
     return;
   }
 
-  // unknown — just give a helpful hint, no server call needed
-  botSay(
-    'I\'m not sure about that. Here\'s what I can do:\n\n' +
-    '• **I want CSE** — start booking\n' +
-    '• **show programs** — see all courses\n' +
-    '• **show slots** — see counseling dates\n' +
-    '• **cancel** — restart'
-  );
+  // FAQ search via server
+  try {
+    const r    = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await r.json();
+    botSay(data.reply || 'I\'m not sure about that. Type **show programs** or **I want CSE**.');
+  } catch {
+    botSay('I\'m not sure about that. Type **show programs** or **I want CSE** to begin!');
+  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  BOOKING — fires only from 'confirm' step
-// ─────────────────────────────────────────────────────────────────────────────
+// ── BOOKING ───────────────────────────────────────────────────────────────────
 async function doBooking() {
-  STATE.step = 'idle'; // reset before async call so no state leak
+  STATE.step = 'idle';
   botSay('⏳ Booking your seat, please wait…');
-
   try {
     const r = await fetch('/api/book', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        fullName:    STATE.data.fullName,
-        email:       STATE.data.email,
-        phone:       STATE.data.phone,
-        rollNo:      STATE.data.rollNo || '',
-        marks12:     STATE.data.marksPct,
-        programName: STATE.program,
-        slotId:      STATE.data.slotId,
+        fullName: STATE.data.fullName, email: STATE.data.email,
+        phone: STATE.data.phone, rollNo: STATE.data.rollNo || '',
+        marks12: STATE.data.marksPct, programName: STATE.program, slotId: STATE.data.slotId,
       }),
     });
     const data = await r.json();
-
     if (!r.ok) {
       botSay(`❌ **Booking failed:** ${data.error}\n\nType **I want ${STATE.program}** to try again.`);
-      resetState();
-      return;
+      resetState(); return;
     }
-
     const b = data.booking;
     botSay(
       `🎉 **Seat Booked Successfully!**\n\n` +
-      `• **Booking ID:** ${b.bookingId}\n` +
-      `• **Program:** ${b.program}\n` +
-      `• **Your Marks:** ${b.marks}%\n` +
-      `• **Counseling:** ${b.slotDate} at ${b.slotTime}\n\n` +
-      `Please carry your **original marksheet** and **ID proof** on the counseling day. Best of luck! 🍀`
+      `• **Booking ID:** ${b.bookingId}\n• **Program:** ${b.program}\n` +
+      `• **Marks:** ${b.marks}%\n• **Counseling:** ${b.slotDate} at ${b.slotTime}\n\n` +
+      `Carry your **marksheet** and **ID proof** on counseling day. Best of luck! 🍀`
     );
     showBookingStatus(b);
     resetState();
-    loadPrograms(); // refresh sidebar counts
-  } catch {
-    botSay('❌ Network error while booking. Please try again.');
-    resetState();
-  }
+    loadPrograms();
+  } catch { botSay('❌ Network error. Please try again.'); resetState(); }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  MARKSHEET UPLOAD
-// ─────────────────────────────────────────────────────────────────────────────
+// ── MARKSHEET ─────────────────────────────────────────────────────────────────
 function showSlotStep() {
   document.getElementById('marksheet-upload-bar').style.display = 'none';
   STATE.step = 'slot';
-  if (!slotOptions.length) {
-    botSay('Sorry, no counseling slots are available right now.');
-    resetState(); return;
-  }
-  const slotList = slotOptions.map((s, i) =>
-    `  **${i+1}.** ${s.slot_date} at ${s.slot_time} (${s.available} seats left)`
-  ).join('\n');
-  botSay(`Now choose a **counseling slot**:\n${slotList}\n\nReply with the slot number (e.g. **1**).`);
+  if (!slotOptions.length) { botSay('No counseling slots available right now.'); resetState(); return; }
+  const list = slotOptions.map((s, i) => `  **${i+1}.** ${s.slot_date} at ${s.slot_time} (${s.available} left)`).join('\n');
+  botSay(`Choose a **counseling slot**:\n${list}\n\nReply with the slot number (e.g. **1**).`);
 }
 
 async function submitMarksheet() {
   const fileInput = document.getElementById('marksheet-file');
   const statusEl  = document.getElementById('marksheet-status');
   const btn       = document.getElementById('marksheet-btn');
-
   if (!fileInput.files || !fileInput.files[0]) {
-    statusEl.textContent = '⚠️ Please select a file first.';
-    statusEl.style.color = '#92400e';
-    return;
+    statusEl.textContent = '⚠️ Please select a file first.'; statusEl.style.color = '#92400e'; return;
   }
-
-  btn.disabled = true;
-  btn.textContent = 'Verifying…';
-  statusEl.textContent = '🔍 Reading your document…';
-  statusEl.style.color = '#4f46e5';
-
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  statusEl.textContent = '🔍 Reading your document…'; statusEl.style.color = '#1d4ed8';
   const formData = new FormData();
   formData.append('marksheet', fileInput.files[0]);
   formData.append('declared_marks', STATE.data.marksPct);
-
   try {
     const r    = await fetch('/api/verify-marksheet', { method: 'POST', body: formData });
     const data = await r.json();
-
     if (!r.ok) {
-      statusEl.textContent = '❌ ' + (data.error || 'Upload failed.');
-      statusEl.style.color = '#dc2626';
-      btn.disabled = false; btn.textContent = 'Verify & Continue';
-      return;
+      statusEl.textContent = '❌ ' + (data.error || 'Upload failed.'); statusEl.style.color = '#dc2626';
+      btn.disabled = false; btn.textContent = 'Verify & Continue'; return;
     }
-
     STATE.data.docVerified = data.verified;
     botSay(data.message);
-
     if (data.verified) {
-      statusEl.textContent = '✅ Verified! Moving to slot selection…';
-      statusEl.style.color = '#166534';
-      setTimeout(() => showSlotStep(), 1000);
+      statusEl.textContent = '✅ Verified! Moving to slot selection…'; statusEl.style.color = '#166534';
+      setTimeout(() => showSlotStep(), 800);
     } else {
-      // marks mismatch — block booking
-      statusEl.textContent = '❌ Marks mismatch. Please re-upload the correct document.';
-      statusEl.style.color = '#dc2626';
+      statusEl.textContent = '❌ Marks mismatch. Re-upload the correct document.'; statusEl.style.color = '#dc2626';
       btn.disabled = false; btn.textContent = 'Verify & Continue';
     }
   } catch {
-    statusEl.textContent = '❌ Network error. Please try again.';
-    statusEl.style.color = '#dc2626';
+    statusEl.textContent = '❌ Network error.'; statusEl.style.color = '#dc2626';
     btn.disabled = false; btn.textContent = 'Verify & Continue';
   }
 }
 
 function skipMarksheet() {
   STATE.data.docVerified = false;
-  botSay('⚠️ Marksheet verification skipped. Your booking will be marked as **pending verification**. Admin will verify manually.');
+  botSay('⚠️ Verification skipped. Admin will verify manually. Proceeding to slot selection…');
   showSlotStep();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-function resetState() {
-  STATE.step    = 'idle';
-  STATE.program = null;
-  STATE.data    = {};
-}
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function resetState() { STATE.step = 'idle'; STATE.program = null; STATE.data = {}; }
 
 function detectProgram(lower) {
-  if (/\b(ai\s*&?\s*data|data\s*science|aids|ai and data)\b/.test(lower)) return 'AI & Data Science';
-  if (/\bcse\b/.test(lower) || lower.includes('computer science'))         return 'CSE';
-  if (/\bece\b/.test(lower) || lower.includes('electronics'))              return 'ECE';
-  if (lower.includes('mechanical') || /\bmech\b/.test(lower))              return 'Mechanical';
-  if (/\bcivil\b/.test(lower))                                             return 'Civil';
-  if (lower.includes('biotechnology') || /\bbiotech\b/.test(lower))       return 'Biotechnology';
+  if (/\b(ai\s*&?\s*data|data\s*science|aids)\b/.test(lower)) return 'AI & Data Science';
+  if (/\bcse\b/.test(lower) || lower.includes('computer science')) return 'CSE';
+  if (/\bece\b/.test(lower) || lower.includes('electronics'))      return 'ECE';
+  if (lower.includes('mechanical') || /\bmech\b/.test(lower))      return 'Mechanical';
+  if (/\bcivil\b/.test(lower))                                     return 'Civil';
+  if (lower.includes('biotechnology') || /\bbiotech\b/.test(lower)) return 'Biotechnology';
   return null;
 }
 
 function parseMarks(input) {
-  const s     = String(input || '').trim();
+  const s = String(input || '').trim();
   const slash = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
-  if (slash) {
-    const num = Number(slash[1]), den = Number(slash[2]);
-    if (den > 0) return Math.round((num / den) * 1000) / 10;
-  }
+  if (slash) { const n=Number(slash[1]),d=Number(slash[2]); if(d>0) return Math.round((n/d)*1000)/10; }
   const n = parseFloat(s.replace(/%/g, ''));
-  if (isNaN(n))  return null;
-  if (n <= 100)  return Math.round(n * 10) / 10;
-  if (n <= 600)  return Math.round((n / 500) * 1000) / 10;
+  if (isNaN(n)) return null;
+  if (n <= 100) return Math.round(n * 10) / 10;
+  if (n <= 600) return Math.round((n / 500) * 1000) / 10;
   return null;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  UI HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
 function botSay(text) {
   const wrap = document.getElementById('chat-messages');
   const div  = document.createElement('div');
@@ -596,42 +487,28 @@ function userSay(text) {
 }
 
 function fmt(t) {
-  return esc(t)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br/>');
+  return esc(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
 }
-
 function esc(t) {
-  return String(t)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
 function setInputDisabled(on) {
   document.getElementById('chat-input').disabled = on;
   document.getElementById('send-btn').disabled   = on;
 }
-
 function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 100) + 'px';
 }
-
 function showBookingStatus(b) {
   const card = document.getElementById('booking-status-card');
   card.className = 'booking-status active';
   card.innerHTML = `
     <div class="label" style="color:var(--success);">✅ Seat Booked</div>
     <div class="value">${b.program_name || b.program}</div>
-    <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">
-      ${b.slotDate || b.slot_date} ${b.slotTime || b.slot_time}
-    </div>
-    <div style="font-size:.78rem;color:var(--muted);">
-      ID: ${b.bookingId || b.booking_id}
-    </div>`;
+    <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem;">${b.slotDate||b.slot_date} ${b.slotTime||b.slot_time}</div>
+    <div style="font-size:.78rem;color:var(--muted);">ID: ${b.bookingId||b.booking_id}</div>`;
 }
-
 async function logout() {
   await fetch('/api/auth/logout', { method: 'POST' });
   location.href = '/login.html';

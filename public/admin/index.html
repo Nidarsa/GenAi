@@ -17,16 +17,21 @@
 
 <!-- NAVBAR -->
 <nav class="navbar">
-  <div class="navbar-brand"><span class="icon">🎓</span> Sastra Deemed University — Admin</div>
+  <div class="navbar-brand">
+    <button class="admin-menu-toggle" onclick="toggleAdminSidebar()" title="Menu">☰</button>
+    <span class="icon">🎓</span> Sastra Deemed University — Admin
+  </div>
   <div class="navbar-right">
-    <div class="navbar-user">Logged in as <span>Administrator</span></div>
-    <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+    <div class="navbar-user">Logged in as <span id="admin-name-display">Administrator</span></div>
+    <button class="btn-logout" onclick="logout()">Logout</button>
   </div>
 </nav>
 
 <!-- LAYOUT -->
-<div class="admin-layout">
-  <aside class="admin-sidebar">
+<div class="admin-layout" id="admin-layout">
+  <!-- Mobile sidebar overlay -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <aside class="admin-sidebar" id="admin-sidebar">
     <div class="logo">🏛️ Sastra Admin</div>
     <nav class="admin-nav">
       <div class="admin-nav-item active" onclick="showSection('overview')"  id="nav-overview"> <span class="icon">📊</span> Overview</div>
@@ -330,6 +335,8 @@
       const r    = await fetch('/api/auth/me');
       const data = await r.json();
       if (!r.ok || !data.user || data.user.role !== 'admin') { window.location.href = '/login.html'; return; }
+      // Show real admin name in navbar
+      document.getElementById('admin-name-display').textContent = data.user.full_name || 'Administrator';
     } catch { window.location.href = '/login.html'; return; }
     loadAll();
   })();
@@ -801,6 +808,21 @@
     await fetch('/api/auth/logout', { method:'POST' });
     window.location.href = '/login.html';
   }
+
+  function toggleAdminSidebar() {
+    document.getElementById('admin-sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('show');
+  }
+  function closeSidebar() {
+    document.getElementById('admin-sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('show');
+  }
+  // Close sidebar when nav item clicked on mobile
+  document.querySelectorAll('.admin-nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) closeSidebar();
+    });
+  });
 </script>
 </body>
 </html>
